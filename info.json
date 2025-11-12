@@ -7,7 +7,8 @@
   "homepage": "",
   "description": "一个独立的太空电梯Mod,允许火车和玩家在配对的传送门之间瞬间移动。美术资源和设计灵感来源于Earendel的Space Exploration,在此表示感谢。至于zzzzz是我随便填写的名字，因为AI告诉我可以确保最后加载,我也不知道为什么,现在修改已经来不及了",
   "factorio_version": "2.0",
-  "dependencies": ["base >= 2.0",
+  "dependencies": [
+    "base >= 2.0",
     "? space-exploration",
     "? cybersyn"
   ]
