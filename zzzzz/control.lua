@@ -20,7 +20,7 @@ end
 local function is_resource_cost_enabled()
   -- 使用安全的短路求值方式读取设置
   return settings.startup["chuansongmen-enable-resource-cost"] and
-  settings.startup["chuansongmen-enable-resource-cost"].value or false
+      settings.startup["chuansongmen-enable-resource-cost"].value or false
 end
 
 -- =================================================================================
@@ -44,7 +44,7 @@ local SE_TELEPORT_FINISHED_EVENT_ID = nil
 -- 核心逻辑 (剩余部分)
 -- =================================================================================
 
-Chuansongmen = {}   -- 全局表，用于存放尚未被完全模块化的函数
+Chuansongmen = {} -- 全局表，用于存放尚未被完全模块化的函数
 
 -- 在 on_load 事件中进行初始化，确保 SE 已经加载完毕
 local function initialize_se_events()
@@ -64,7 +64,13 @@ end
 
 -- 备注：以下几个函数暂时保留在 control.lua，因为它们是全局性的辅助函数。
 function Chuansongmen.elevator_east_sign(struct)
-  return struct.direction == defines.direction.east and 1 or -1
+  -- 【崩溃修复】正确处理南北/东西方向的映射
+  -- 东(East)和南(South)方向使用同一个模型，逻辑上视为+1
+  if struct.direction == defines.direction.east or struct.direction == defines.direction.south then
+    return 1
+  else -- 北(North)和西(West)方向使用另一个模型，逻辑上视为-1
+    return -1
+  end
 end
 
 function Chuansongmen.carriage_east_sign(carriage)
@@ -99,8 +105,15 @@ local function initialize_all_modules()
   local gui_deps = { State = State, Chuansongmen = Chuansongmen, CybersynCompat = CybersynCompat, log_debug = log_debug }
   if GUI.init then GUI.init(gui_deps) end
 
-  local pm_deps = { State = State, GUI = GUI, Constants = Constants, Util = Util, Chuansongmen = Chuansongmen, log_debug =
-  log_debug }
+  local pm_deps = {
+    State = State,
+    GUI = GUI,
+    Constants = Constants,
+    Util = Util,
+    Chuansongmen = Chuansongmen,
+    log_debug =
+        log_debug
+  }
   if PortalManager.init then PortalManager.init(pm_deps) end
 
   if PortalManager.init then PortalManager.init(pm_deps) end
@@ -200,7 +213,7 @@ end)
 
 function Chuansongmen.find_portal_path_for_cybersyn(source_surface_index, destination_surface_index)
   log_debug("传送门 DEBUG (find_portal_path_for_cybersyn): 正在查找从地表 " ..
-  source_surface_index .. " 到 " .. destination_surface_index .. " 的传送门路径...")
+    source_surface_index .. " 到 " .. destination_surface_index .. " 的传送门路径...")
   for _, portal_A in pairs(MOD_DATA.portals) do
     if portal_A.surface.index == source_surface_index and portal_A.paired_to_id and portal_A.cybersyn_connected then
       local portal_B = State.get_opposite_struct(portal_A)
@@ -357,7 +370,7 @@ local function on_tick(event)
       if event.tick % 60 == struct.id % 60 then
         if not (struct.collider and struct.collider.valid) then
           local se_direction = (struct.direction == defines.direction.east or struct.direction == defines.direction.south) and
-          defines.direction.east or defines.direction.west
+              defines.direction.east or defines.direction.west
           local collider_pos_offset = Constants.space_elevator_collider_position[se_direction]
           if collider_pos_offset then
             log_debug("传送门 DEBUG (on_tick): 传送门 " .. struct.id .. " 的碰撞器无效，正在重建...")
@@ -461,7 +474,7 @@ local function on_tick(event)
               PortalManager.disconnect_portal_power(nil, struct_A.id) -- player为nil，状态会变为 "disconnected_by_system"
 
               local gps_tag_A = "[gps=" ..
-              struct_A.position.x .. "," .. struct_A.position.y .. "," .. struct_A.surface.name .. "]"
+                  struct_A.position.x .. "," .. struct_A.position.y .. "," .. struct_A.surface.name .. "]"
               for _, player in pairs(game.players) do
                 if settings.get_player_settings(player)["chuansongmen-show-power-warnings"].value == true then
                   player.print({ "messages.chuansongmen-warning-power-disconnected-shards", gps_tag_A, struct_A.name,
@@ -470,10 +483,24 @@ local function on_tick(event)
               end
             else
               -- 【续期成功】
-              if count_A > 0 then inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 }) else inv_B.remove({ name =
-                "chuansongmen-spacetime-shard", count = 1 }) end
-              if count_B > 0 then inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 }) else inv_A.remove({ name =
-                "chuansongmen-spacetime-shard", count = 1 }) end
+              if count_A > 0 then
+                inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+              else
+                inv_B.remove({
+                  name =
+                  "chuansongmen-spacetime-shard",
+                  count = 1
+                })
+              end
+              if count_B > 0 then
+                inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+              else
+                inv_A.remove({
+                  name =
+                  "chuansongmen-spacetime-shard",
+                  count = 1
+                })
+              end
 
               local duration_in_minutes = settings.global["chuansongmen-power-grid-duration"].value
               local duration_in_ticks = duration_in_minutes * 60 * 60
@@ -498,10 +525,24 @@ local function on_tick(event)
               log_debug("传送门 DEBUG (on_tick): [电网唤醒] 碎片已补充，正在自动恢复电网连接...")
 
               -- 复用 connect_portal_power 的逻辑 (手动调用)
-              if count_A > 0 then inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 }) else inv_B.remove({ name =
-                "chuansongmen-spacetime-shard", count = 1 }) end
-              if count_B > 0 then inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 }) else inv_A.remove({ name =
-                "chuansongmen-spacetime-shard", count = 1 }) end
+              if count_A > 0 then
+                inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+              else
+                inv_B.remove({
+                  name =
+                  "chuansongmen-spacetime-shard",
+                  count = 1
+                })
+              end
+              if count_B > 0 then
+                inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+              else
+                inv_A.remove({
+                  name =
+                  "chuansongmen-spacetime-shard",
+                  count = 1
+                })
+              end
 
               struct_A.power_connection_status = "connected"
               struct_B.power_connection_status = "connected"
@@ -515,7 +556,7 @@ local function on_tick(event)
               PortalManager.connect_wires(struct_A, struct_B) -- 直接调用内部函数连接电线
 
               local gps_tag_A = "[gps=" ..
-              struct_A.position.x .. "," .. struct_A.position.y .. "," .. struct_A.surface.name .. "]"
+                  struct_A.position.x .. "," .. struct_A.position.y .. "," .. struct_A.surface.name .. "]"
               for _, player in pairs(game.players) do
                 if settings.get_player_settings(player)["chuansongmen-show-power-warnings"].value == true then
                   player.print({ "messages.chuansongmen-info-power-reconnected-auto", gps_tag_A, struct_A.name, struct_B
@@ -540,7 +581,7 @@ end
 log_debug("传送门 DEBUG (control.lua): 注册事件监听器...")
 script.on_event(defines.events.on_gui_click, GUI.handle_click)
 script.on_event(defines.events.on_gui_checked_state_changed, GUI.handle_checked_state_changed)
-script.on_event(defines.events.on_gui_selection_state_changed, GUI.handle_signal_selection)   -- 【新增】监听玩家从信号选择界面选择图标的事件
+script.on_event(defines.events.on_gui_selection_state_changed, GUI.handle_signal_selection) -- 【新增】监听玩家从信号选择界面选择图标的事件
 script.on_event(defines.events.on_tick, on_tick)
 script.on_event(defines.events.on_built_entity, function(event)
   if event.entity and event.entity.name == Constants.name_entity then
@@ -615,7 +656,7 @@ end
 script.on_event(defines.events.on_trigger_created_entity, function(event)
   if event.entity and event.entity.name == Constants.name_train_collision_detector then
     log_debug("传送门 DEBUG (event): on_trigger_created_entity 捕捉到碰撞检测实体 '" ..
-    Constants.name_train_collision_detector .. "' 创建！")
+      Constants.name_train_collision_detector .. "' 创建！")
     TeleportHandler.check_carriage_at_location(event.entity.surface, event.entity.position)
   end
 end
