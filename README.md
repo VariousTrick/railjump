@@ -1,7 +1,12 @@
-# RaRailJump (轨道跃迁站)
+# RailJump (轨道跃-迁站)
 
-English | [简体中文](#-简体中文-版本)
+This README is available in the following languages:
+(本 README 提供以下语言版本):
 
+<details>
+<summary><strong>:us: English</strong></summary>
+
+---
 _A teleporter mod that allows trains and engineers to instantly travel between two distant, paired portals._
 
 [Factorio Mod Portal Link](https://mods.factorio.com/mod/zzzzz) | [GitHub Repository](https://github.com/VariousTrick/railjump)
@@ -78,11 +83,15 @@ You will be able to construct massive portals, pair them, and establish an insta
 *   Implement a dedicated technology tree to integrate all recipes into the game's progression.
 *   Improve compatibility with Cybersyn in a non-SE environment (if possible).
 
-<br><hr><br>
+---
 
-## [English](#railjump-轨道跃遷站) | 简体中文 版本
+</details>
 
-# RailJump (轨道跃迁站)
+<details>
+<summary><strong>:cn: 简体中文</strong></summary>
+
+---
+
 
 _一个允许火车和工程师在遥远的两个点之间瞬间移动的传送门模组。_
 
@@ -159,3 +168,7 @@ _一个允许火车和工程师在遥远的两个点之间瞬间移动的传送�
 
 *   增加独立的科技树，将所有配方整合到游戏进程中。
 *   完善与Cybersyn在无SE环境下的兼容性（如果可能的话）。
+
+---
+
+</details>
