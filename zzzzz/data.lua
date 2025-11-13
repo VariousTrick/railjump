@@ -81,7 +81,7 @@ data:extend({
         crafting_categories = { "chuansongmen-internal" },
         -- 【请进行这两处修改】
         fixed_recipe = "chuansongmen-dummy-maintenance",
-        crafting_speed = 0.01,     -- 初始值，后续会根据模式调整
+        crafting_speed = 0.01, -- 初始值，后续会根据模式调整
         energy_source = { type = "electric", usage_priority = "secondary-input", drain = "10kW" },
         energy_usage = "10kW",
         collision_mask = {
@@ -95,12 +95,112 @@ data:extend({
         },
         graphics_set = {
             animation = {
-                north = { layers = { { filename = "__zzzzz__/graphics/entity/portal/portal-left.png", priority = "high", width = 832, height = 832, scale = 1, shift = { 0, 0 } }, { filename = "__zzzzz__/graphics/entity/portal/portal-shadow.png", priority = "high", width = 2304, height = 1344, scale = 0.5, shift = { 6, 2.5 }, draw_as_shadow = true } } },
-                east = { layers = { { filename = "__zzzzz__/graphics/entity/portal/portal-right.png", priority = "high", width = 832, height = 832, scale = 1, shift = { 0, 0 } }, { filename = "__zzzzz__/graphics/entity/portal/portal-shadow.png", priority = "high", width = 2304, height = 1344, scale = 0.5, shift = { 6, 2.5 }, draw_as_shadow = true } } },
-                south = { layers = { { filename = "__zzzzz__/graphics/entity/portal/portal-right.png", priority = "high", width = 832, height = 832, scale = 1, shift = { 0, 0 } }, { filename = "__zzzzz__/graphics/entity/portal/portal-shadow.png", priority = "high", width = 2304, height = 1344, scale = 0.5, shift = { 6, 2.5 }, draw_as_shadow = true } } },
-                west = { layers = { { filename = "__zzzzz__/graphics/entity/portal/portal-left.png", priority = "high", width = 832, height = 832, scale = 1, shift = { 0, 0 } }, { filename = "__zzzzz__/graphics/entity/portal/portal-shadow.png", priority = "high", width = 2304, height = 1344, scale = 0.5, shift = { 6, 2.5 }, draw_as_shadow = true } } },
+                -- 北 (North) - 曾经是 portal-left-blue.png
+                north = {
+                    layers = {
+                        {
+                            -- 指向新的彩色图集，并定位到左上角 (0, 0)
+                            filename = "__zzzzz__/graphics/entity/portal/portal-color-atlas.png",
+                            priority = "high",
+                            width = 832,
+                            height = 832,
+                            scale = 1,
+                            shift = { 0, 0 },
+                            x = 0,
+                            y = 0,
+                        },
+                        {
+                            -- 阴影
+                            filename = "__zzzzz__/graphics/entity/portal/portal-shadow.png",
+                            priority = "high",
+                            width = 2304,
+                            height = 1344,
+                            scale = 0.5,
+                            shift = { 6, 2.5 },
+                            draw_as_shadow = true
+                        }
+                    }
+                },
+                -- 东 (East) - 曾经是 portal-right-red.png
+                east = {
+                    layers = {
+                        {
+                            -- 指向新的彩色图集，并定位到右上角 (832, 0)
+                            filename = "__zzzzz__/graphics/entity/portal/portal-color-atlas.png",
+                            priority = "high",
+                            width = 832,
+                            height = 832,
+                            scale = 1,
+                            shift = { 0, 0 },
+                            x = 832,
+                            y = 0,
+                        },
+                        {
+                            -- 阴影
+                            filename = "__zzzzz__/graphics/entity/portal/portal-shadow.png",
+                            priority = "high",
+                            width = 2304,
+                            height = 1344,
+                            scale = 0.5,
+                            shift = { 6, 2.5 },
+                            draw_as_shadow = true
+                        }
+                    }
+                },
+                -- 南 (South) - 曾经是 portal-right-white.png
+                south = {
+                    layers = {
+                        {
+                            -- 指向新的彩色图集，并定位到右下角 (832, 832)
+                            filename = "__zzzzz__/graphics/entity/portal/portal-color-atlas.png",
+                            priority = "high",
+                            width = 832,
+                            height = 832,
+                            scale = 1,
+                            shift = { 0, 0 },
+                            x = 832,
+                            y = 832,
+                        },
+                        {
+                            -- 阴影
+                            filename = "__zzzzz__/graphics/entity/portal/portal-shadow.png",
+                            priority = "high",
+                            width = 2304,
+                            height = 1344,
+                            scale = 0.5,
+                            shift = { 6, 2.5 },
+                            draw_as_shadow = true
+                        }
+                    }
+                },
+                -- 西 (West) - 曾经是 portal-left-green.png
+                west = {
+                    layers = {
+                        {
+                            -- 指向新的彩色图集，并定位到左下角 (0, 832)
+                            filename = "__zzzzz__/graphics/entity/portal/portal-color-atlas.png",
+                            priority = "high",
+                            width = 832,
+                            height = 832,
+                            scale = 1,
+                            shift = { 0, 0 },
+                            x = 0,
+                            y = 832,
+                        },
+                        {
+                            -- 阴影
+                            filename = "__zzzzz__/graphics/entity/portal/portal-shadow.png",
+                            priority = "high",
+                            width = 2304,
+                            height = 1344,
+                            scale = 0.5,
+                            shift = { 6, 2.5 },
+                            draw_as_shadow = true
+                        }
+                    }
+                },
             },
-            working_visualisations = {}         -- 【请在这里加入这一行】
+            working_visualisations = {}
         },
     },
 
@@ -143,13 +243,13 @@ data:extend({
         type = "recipe",
         name = "chuansongmen-exotic-matter-production",
         category = "centrifuging", -- 只能在离心机中制作
-        enabled = true,        -- 直接可用
+        enabled = true,            -- 直接可用
         energy_required = 60,
         ingredients = {
-            { type = "item", name = "speed-module",    amount = 1 },
-            { type = "item", name = "efficiency-module", amount = 1 },
+            { type = "item", name = "speed-module",        amount = 1 },
+            { type = "item", name = "efficiency-module",   amount = 1 },
             { type = "item", name = "productivity-module", amount = 1 },
-            { type = "item", name = "uranium-235",     amount = 1 }
+            { type = "item", name = "uranium-235",         amount = 1 }
             -- 【修改】移除了重油
         },
         results = {
@@ -162,7 +262,7 @@ data:extend({
         type = "recipe",
         name = "chuansongmen-shard-recycling",
         category = "crafting", -- 【修改】可以在组装机或玩家手中制作
-        enabled = true,    -- 直接可用
+        enabled = true,        -- 直接可用
         energy_required = 30,
         ingredients = {
             { type = "item", name = "chuansongmen-spacetime-shard", amount = 10 }
@@ -178,7 +278,7 @@ data:extend({
         type = "recipe",
         name = "chuansongmen-shard-emergency-production",
         category = "centrifuging", -- 只能在离心机中制作
-        enabled = true,        -- 直接可用
+        enabled = true,            -- 直接可用
         energy_required = 10,
         ingredients = {
             { type = "item", name = "speed-module", amount = 1 },
@@ -194,7 +294,7 @@ data:extend({
         type = "recipe",
         name = "chuansongmen-personal-stabilizer-production",
         category = "crafting", -- 可以在组装机或玩家手中制作
-        enabled = true,    -- 直接可用
+        enabled = true,        -- 直接可用
         energy_required = 15,
         ingredients = {
             { type = "item", name = "processing-unit",              amount = 10 },
@@ -361,7 +461,7 @@ data:extend({
 --    在 data 阶段，settings.startup 是只读的，这样读取是安全的。
 -- =================================================================================================
 local resource_cost_enabled = settings.startup["chuansongmen-enable-resource-cost"] and
-settings.startup["chuansongmen-enable-resource-cost"].value or true
+    settings.startup["chuansongmen-enable-resource-cost"].value or true
 
 -- =================================================================================================
 -- 3. 根据模式修改原型 (从 data-final-fixes 移植)
@@ -400,8 +500,8 @@ else
     log("传送门 Mod: 正在启用 [无消耗] 模式。")
 
     portal_entity.fixed_recipe = "chuansongmen-dummy-maintenance"
-    data.raw.recipe["chuansongmen-dummy-maintenance"].enabled = true             -- 确保虚拟配方可用
-    portal_entity.crafting_speed = 0.01                                          -- 保持旧版无消耗模式的极低速度
+    data.raw.recipe["chuansongmen-dummy-maintenance"].enabled = true -- 确保虚拟配方可用
+    portal_entity.crafting_speed = 0.01                              -- 保持旧版无消耗模式的极低速度
 
     -- 确保其他消耗模式的属性不存在
     portal_entity.ingredient_inventory_size = nil
@@ -451,10 +551,10 @@ internal_power_switch.led_off = blank_sprite
 local internal_train_stop = data.raw["train-stop"]["chuansongmen-train-stop"]
 table_merge(internal_train_stop, table.deepcopy(data.raw["train-stop"]["train-stop"]))
 -- 在 table_merge(...) 之后添加/修改：
-internal_train_stop.minable = nil                                    -- 不可挖掘
-internal_train_stop.placeable_by = nil                               -- 不可放置 (虽然 hidden=true 通常足够)
-internal_train_stop.next_upgrade = nil                               -- 移除升级信息
-internal_train_stop.fast_replaceable_group = nil                     -- 移除快速替换组
+internal_train_stop.minable = nil                -- 不可挖掘
+internal_train_stop.placeable_by = nil           -- 不可放置 (虽然 hidden=true 通常足够)
+internal_train_stop.next_upgrade = nil           -- 移除升级信息
+internal_train_stop.fast_replaceable_group = nil -- 移除快速替换组
 -- 确保 flags 包含 SE 使用的所有标志 (合并，不要覆盖)
 -- 您当前的 flags 已经很好了: {"hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable", "not-on-map"}
 -- SE 还加了 "not-in-kill-statistics"，可以考虑加入
@@ -499,8 +599,13 @@ if internal_rail_signal.ground_picture_set then
 end
 
 -- 为清空轨道图形准备正确的空白结构 (原版)
-local blank_rail_layers = { metals = blank_sprite, backplates = blank_sprite, ties = blank_sprite, stone_path =
-blank_sprite }
+local blank_rail_layers = {
+    metals = blank_sprite,
+    backplates = blank_sprite,
+    ties = blank_sprite,
+    stone_path =
+        blank_sprite
+}
 
 local internal_straight_rail = data.raw["legacy-straight-rail"]["chuansongmen-legacy-straight-rail"]
 table_merge(internal_straight_rail, table.deepcopy(data.raw["legacy-straight-rail"]["legacy-straight-rail"]))
@@ -522,7 +627,7 @@ internal_straight_rail.selectable_in_game = false
 
 -- 清理主要的轨道图形
 for _, key in pairs({ "straight_rail_horizontal", "straight_rail_vertical", "straight_rail_diagonal_left_top", "straight_rail_diagonal_right_top", "straight_rail_diagonal_right_bottom", "straight_rail_diagonal_left_bottom" }) do
-    if internal_straight_rail.pictures[key] then                         -- 检查以防万一
+    if internal_straight_rail.pictures[key] then -- 检查以防万一
         internal_straight_rail.pictures[key] = blank_rail_layers
     end
 end
@@ -550,7 +655,7 @@ internal_curved_rail.selectable_in_game = false
 
 -- 清理主要的轨道图形
 for _, key in pairs({ "curved_rail_vertical_left_top", "curved_rail_vertical_right_top", "curved_rail_vertical_right_bottom", "curved_rail_vertical_left_bottom", "curved_rail_horizontal_left_top", "curoved_rail_horizontal_right_top", "curved_rail_horizontal_right_bottom", "curved_rail_horizontal_left_bottom" }) do
-    if internal_curved_rail.pictures[key] then                                 -- 检查以防万一
+    if internal_curved_rail.pictures[key] then -- 检查以防万一
         internal_curved_rail.pictures[key] = blank_rail_layers
     end
 end

@@ -75,7 +75,7 @@ You will be able to construct massive portals, pair them, and establish an insta
 ## Acknowledgements
 
 *   **Earendel**: For the great **Space Exploration** mod, which was the entire inspiration for this project.
-*   **Mami**: For the powerful **Cybersyn** mod and for the invaluable guidance provided on compatibility issues.
+*   **Mami/Tetlanesh**: For the powerful **Cybersyn** mod and for the invaluable guidance provided on compatibility issues.
 *   **The Players**: Thank you for using this mod, and you are welcome to provide any feedback and suggestions!
 
 ## Future Plans
@@ -161,7 +161,7 @@ _一个允许火车和工程师在遥远的两个点之间瞬间移动的传送�
 ## 鸣谢
 
 *   **Earendel**: 感谢其伟大的 **Space Exploration** Mod，它是我这个项目的全部灵感来源。
-*   **Mami**: 感谢其强大的 **Cybersyn** Mod，以及他在兼容性问题上提供的宝贵指导。
+*   **Mami/Tetlanesh**: 感谢其强大的 **Cybersyn** Mod，以及他在兼容性问题上提供的宝贵指导。
 *   **各位玩家**: 感谢您使用本模组，并欢迎您提出任何反馈和建议！
 
 ## 未来计划
