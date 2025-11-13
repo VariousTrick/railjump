@@ -1,3 +1,87 @@
+# RaRailJump (轨道跃迁站)
+
+English | [简体中文](#-简体中文-版本)
+
+_A teleporter mod that allows trains and engineers to instantly travel between two distant, paired portals._
+
+[Factorio Mod Portal Link](https://mods.factorio.com/mod/zzzzz) | [GitHub Repository](https://github.com/VariousTrick/railjump)
+
+---
+
+## Table of Contents
+
+*   [About the Mod](#about-the-mod)
+*   [Core Features](#core-features)
+*   [Getting Started](#getting-started)
+*   [Resources & Consumption](#resources--consumption)
+*   [Compatibility](#compatibility)
+*   [Acknowledgements](#acknowledgements)
+*   [Future Plans](#future-plans)
+
+---
+
+## About the Mod
+
+**RailJump** brings an endgame logistics revolution to your factory. The design of this mod is entirely inspired by Earendel's Space Exploration and aims to bring the magnificent concept of the "Space Elevator" to all Factorio engineers in a standalone package, compatible with both vanilla and other large mods.
+
+You will be able to construct massive portals, pair them, and establish an instantaneous train transportation network across the entire planet, or even between different planets.
+
+**Important Disclaimer**: The development of this mod was entirely assisted by an AI. The developer himself primarily acts as the "director" and "tester" of the project. This is an experimental project exploring the possibilities of AI-assisted development. If you have any suggestions regarding the mod's design or balance, your feedback is always welcome, and we will continue to iterate and improve it with the AI.
+
+## Core Features
+
+*   **Instant Train Teleportation**: Instantly teleports an entire train (including its cargo, fluids, equipment, and passengers) from one portal to its paired counterpart.
+*   **Player Teleportation**: Engineers can also use the portals for rapid personal travel.
+*   **Cross-Surface Power Grid**: Paired and connected portals can share the same power network, allowing you to transmit power from your main base to remote outposts without any loss.
+*   **Two Game Modes**:
+    *   **Consumption Mode (Default)**: Teleporting and maintaining the power grid require dedicated late-game resources, bringing new logistical challenges.
+    *   **Cost-Free Mode**: For players who prefer a "sandbox" or "creative" experience, all costs can be disabled for unrestricted building and planning.
+*   **Configurable**: The in-game mod settings menu allows you to adjust the power grid maintenance cost and toggle related warning messages in real-time.
+
+## Getting Started
+
+1.  **Research Technology**: (This part is planned for the future; all recipes are currently available from the start).
+2.  **Craft Core Materials**:
+    *   **[item=chuansongmen-exotic-matter] Exotic Matter**: The core fuel for teleportation, produced in a **Centrifuge** via a complex endgame recipe.
+    *   **[item=chuansongmen-personal-stabilizer] Personal Spacetime Stabilizer**: An essential safety device required for player teleportation.
+    *   **[item=chuansongmen-spacetime-shard] Unstable Spacetime Shard**: A by-product of teleportation and the key consumable for maintaining the power grid. It can also be crafted via an inefficient emergency recipe in a Centrifuge.
+3.  **Build the Portal**:
+    *   Craft your first [item=chuansongmen] **Portal** using an expensive engineering recipe.
+4.  **Pair & Use**:
+    *   Place a portal at each of the two locations you wish to connect.
+    *   Click on one portal, and in the opened GUI, select the other portal from the dropdown menu and click "Pair".
+    *   Lay train tracks onto the portal's platform.
+    *   Embark on your first spacetime jump!
+
+## Resources & Consumption (in Consumption Mode)
+
+*   **Train Teleport**: Consumes **1x [item=chuansongmen-exotic-matter] Exotic Matter** per trip.
+*   **Player Teleport**: Consumes **1x [item=chuansongmen-exotic-matter] Exotic Matter** and **1x [item=chuansongmen-personal-stabilizer] Personal Spacetime Stabilizer** per trip.
+*   **Power Grid Maintenance**: After connecting the remote power grid, the portal network will continuously consume **[item=chuansongmen-spacetime-shard] Unstable Spacetime Shards**. The default rate is 2 shards per minute (1 per portal), adjustable in the mod settings.
+*   **Resource Return**: Each successful train or player teleportation returns **3x [item=chuansongmen-spacetime-shard] Unstable Spacetime Shards** in the output inventory.
+
+## Compatibility
+
+*   **Space Exploration (SE)**: Fully compatible. When SE is present, this mod's teleportation logic coexists harmoniously with SE's mechanics.
+*   **Cybersyn**: Deep compatibility is provided.
+    *   **With SE**: Cybersyn can use the portals as space elevators for fully automatic cross-surface dispatching.
+    *   **Without SE**: Due to limitations within Cybersyn, **fully automatic** cross-surface dispatching is **not available**. However, players can **manually** add portal stations to a train's schedule. This mod includes an "ID Loss Fix" to ensure Cybersyn can correctly track the train after teleportation.
+
+## Acknowledgements
+
+*   **Earendel**: For the great **Space Exploration** mod, which was the entire inspiration for this project.
+*   **Mami**: For the powerful **Cybersyn** mod and for the invaluable guidance provided on compatibility issues.
+*   **The Players**: Thank you for using this mod, and you are welcome to provide any feedback and suggestions!
+
+## Future Plans
+
+*   Implement a dedicated technology tree to integrate all recipes into the game's progression.
+*   Improve compatibility with Cybersyn in a non-SE environment (if possible).
+
+<br><hr><br>
+
+## [English](#railjump-轨道跃遷站) | 简体中文 版本
+
 # RailJump (轨道跃迁站)
 
 _一个允许火车和工程师在遥远的两个点之间瞬间移动的传送门模组。_
