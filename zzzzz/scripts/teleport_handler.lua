@@ -141,49 +141,56 @@ function TeleportHandler.finish_teleport(struct, opposite_struct)
 end
 
 --- 传送下一节车厢
+--- 传送下一节车厢 (由 on_tick 循环驱动)
 function TeleportHandler.teleport_next(struct)
   local opposite = State.get_opposite_struct(struct)
   if not opposite then
     log_debug("传送门 DEBUG (teleport_next): 传送门 " .. struct.id .. " 未找到配对，中断传送。")
-    TeleportHandler.finish_teleport(struct, struct)
+    TeleportHandler.finish_teleport(struct, struct) -- 使用 struct 自身作为 opposite 是一种安全的回退
     return
   end
+
+  -- 检查入口车厢是否依然有效
   if not (struct.carriage_behind and struct.carriage_behind.valid and struct.carriage_behind.surface == struct.surface) then
-    struct.carriage_behind, struct.carriage_ahead = nil, nil
+    log_debug("传送门 DEBUG (teleport_next): 入口待传送车厢已失效，传送序列终止。")
+    TeleportHandler.finish_teleport(struct, opposite)
     return
   end
+
   local carriage = struct.carriage_behind
   if not (carriage.train and carriage.train.valid) then
     log_debug("传送门 警告 (teleport_next): 待传送车厢或其火车无效，中断传送。")
     TeleportHandler.finish_teleport(struct, opposite)
     return
   end
+
   local carriage_ahead = opposite.carriage_ahead
   local se_direction = (opposite.direction == defines.direction.east or opposite.direction == defines.direction.south) and
       defines.direction.east or defines.direction.west
   local spawn_pos = Util.vectors_add(opposite.position, Constants.output_pos[se_direction])
+
   local can_place = opposite.surface.can_place_entity { name = carriage.name, position = spawn_pos, direction = defines.direction.south, force = carriage.force }
-  local is_clear = opposite.surface.count_entities_filtered { type = Constants.stock_types, area = opposite.output_area, limit = 1 } ==
+  local is_clear = not carriage_ahead and
+      opposite.surface.count_entities_filtered { type = Constants.stock_types, area = opposite.output_area, limit = 1 } ==
       0
+
   if can_place and (carriage_ahead or is_clear) then
     log_debug("传送门 DEBUG (teleport_next): 传送门 " .. struct.id .. " 正在传送车厢: " .. carriage.name)
+
     local next_carriage = carriage.get_connected_rolling_stock(defines.rail_direction.front) or
         carriage.get_connected_rolling_stock(defines.rail_direction.back)
+
     if not carriage_ahead then
       opposite.carriage_ahead_manual_mode, opposite.old_train_speed, opposite.old_train_id = carriage.train.manual_mode,
           carriage.train.speed, carriage.train.id
-      log_debug("传送门 DEBUG (teleport_next): [状态保存] 已保存火车状态。")
+      log_debug("传送门 DEBUG (teleport_next): [状态保存] 已保存火车状态。速度: " .. opposite.old_train_speed)
     end
 
-    -- =======================================================
-    -- 【Tug机制】在创建新车厢之前，先销毁上一轮的Tug
-    -- =======================================================
     if opposite.tug and opposite.tug.valid then
       opposite.tug.destroy()
       opposite.tug = nil
       log_debug("传送门 DEBUG (teleport_next): [Tug] 旧拖船已销毁。")
     end
-    -- =======================================================
 
     local spawn_dir = carriage.orientation > 0.5 and defines.direction.south or defines.direction.north
     local new_carriage = opposite.surface.create_entity({
@@ -192,13 +199,16 @@ function TeleportHandler.teleport_next(struct)
       direction = spawn_dir,
       force = carriage.force
     })
+
     if not new_carriage then
       log_debug("传送门 致命错误 (teleport_next): 无法在出口创建新车厢！")
       TeleportHandler.finish_teleport(struct, opposite)
       return
     end
+
     log_debug("传送门 DEBUG (teleport_next): 新车厢 " .. new_carriage.name .. " 创建成功。")
     TeleportHandler.carriage_transfer_contents(carriage, new_carriage)
+
     if not carriage_ahead then
       log_debug("传送门 DEBUG (teleport_next): [时刻表] 调用 ScheduleHandler 进行智能设定...")
       ScheduleHandler.transfer_schedule(carriage.train, new_carriage.train, struct.station.backer_name)
@@ -207,69 +217,49 @@ function TeleportHandler.teleport_next(struct)
         log_debug("传送门 DEBUG (teleport_next): [时刻表] 已将正确的下一站索引 [" .. opposite.saved_schedule_index .. "] 记忆到出口。")
       end
     end
-    if SE_TELEPORT_STARTED_EVENT_ID then
-      log_debug("传送门 SE 兼容: 正在为旧火车 ID " .. tostring(opposite.old_train_id) .. " 触发 on_train_teleport_started。")
+
+    if SE_TELEPORT_STARTED_EVENT_ID and not carriage_ahead then
+      log_debug("传送门 SE 兼容: 正在为旧火车 ID " .. tostring(carriage.train.id) .. " 触发 on_train_teleport_started。")
       script.raise_event(SE_TELEPORT_STARTED_EVENT_ID, {
         train = carriage.train,
-        old_train_id_1 = opposite.old_train_id or 0,
+        old_train_id_1 = carriage.train.id,
         old_surface_index = struct.surface.index,
         teleporter = struct.entity
       })
     end
-    if new_carriage.train and new_carriage.train.valid then
-      local speed_dir = Chuansongmen.elevator_east_sign(opposite) * Chuansongmen.carriage_east_sign(new_carriage) *
-          Chuansongmen.train_forward_sign(new_carriage)
-      new_carriage.train.speed = speed_dir * math.abs(opposite.old_train_speed)
-      if opposite.saved_schedule_index then
-        new_carriage.train.get_schedule().go_to_station(opposite.saved_schedule_index)
-        log_debug("传送门 DEBUG (teleport_next): [时刻表] 强制将火车目标指回正确的站点索引。")
-      end
-    end
+
     if carriage.valid then
-      log_debug("传送门 DEBUG (teleport_next): 销毁旧车厢。")
       carriage.destroy()
     end
+
     struct.carriage_ahead, opposite.carriage_ahead = new_carriage, new_carriage
+
     if next_carriage and next_carriage.valid then
       log_debug("传送门 DEBUG (teleport_next): 设置下一节待传送车厢: " .. next_carriage.name)
       struct.carriage_behind = next_carriage
 
-      -- =======================================================
-      -- 【Tug机制】在拼接完新车厢之后，在车队尾部创建新的Tug
-      -- =======================================================
       local tug = opposite.surface.create_entity { name = Constants.name_tug, position = Util.vectors_add(opposite.position, Constants.output_tug_pos[se_direction]), direction = se_direction, force = new_carriage.force }
       if tug then
         tug.destructible = false
         opposite.tug = tug
         log_debug("传送门 DEBUG (teleport_next): [Tug] 新拖船已创建并连接到车厢 " .. new_carriage.unit_number)
       end
-      -- =======================================================
     else
       log_debug("传送门 DEBUG (teleport_next): 这是最后一节车厢，传送完成。")
       TeleportHandler.finish_teleport(struct, opposite)
     end
   else
-    log_debug("传送门 警告 (teleport_next): 传送目标点被阻挡。")
-    -- 【最终兼容性修复】
+    log_debug("传送门 警告 (teleport_next): 传送目标点被阻挡。等待 on_tick 速度管理器疏通...")
+
     if not carriage_ahead and not carriage.train.manual_mode then
       local schedule = carriage.train.get_schedule()
-
       if schedule then
-        -- 1. 获取整个时刻表的记录列表
         local records = schedule.get_records()
         local current_index = schedule.current
-
-        -- 2. 确保当前索引有效，并且对应的记录存在
         if records and records[current_index] then
-          -- 3. 只修改当前记录的等待条件，这是最无侵入性的做法
           records[current_index].wait_conditions = { { type = "time", ticks = 9999999 * 60 } }
-
-          -- (可选，但推荐) 标记为临时，这样schedule-handler在传送后可以清理它
           records[current_index].temporary = true
-
-          -- 4. 将修改后的完整记录列表写回火车
           schedule.set_records(records)
-
           log_debug("传送门 DEBUG (teleport_next): [兼容性模式] 出口堵塞，已修改当前站点的等待条件使火车暂停。")
         end
       end
@@ -299,14 +289,14 @@ function TeleportHandler.check_carriage_at_location(surface, position)
           local portal_inventory = struct.entity.get_inventory(defines.inventory.assembling_machine_input)
           if not portal_inventory then
             log_debug("传送门 错误 (check_carriage): [资源消耗] 无法获取传送门输入物品栏！")
-            return                             -- 严重错误，中断
+            return -- 严重错误，中断
           end
 
           -- 1. 定义火车传送需要消耗的物品
           local items_to_consume = { { name = "chuansongmen-exotic-matter", count = 1 } }
 
           -- 2. 调用新的共享资源消耗函数
-          local result = Util.consume_shared_resources(nil, struct, opposite, items_to_consume)                               -- player为nil，将向所有人广播
+          local result = Util.consume_shared_resources(nil, struct, opposite, items_to_consume) -- player为nil，将向所有人广播
 
           -- 3. 根据结果进行处理
           if result.success then
@@ -345,7 +335,7 @@ function TeleportHandler.check_carriage_at_location(surface, position)
             else
               log_debug("传送门 DEBUG (check_carriage): [时刻表修复] 火车处于手动模式，跳过时刻表修改。")
             end
-            return                                           -- 关键：中断函数，传送序列不会开始
+            return -- 关键：中断函数，传送序列不会开始
           end
         end
       end
@@ -363,45 +353,65 @@ function TeleportHandler.check_carriage_at_location(surface, position)
 end
 
 -- =================================================================================
--- SE 兼容性：速度同步
+-- SE 兼容性：速度同步 (现在由 on_tick 循环持续调用)
 -- =================================================================================
 
+--- 【重构】速度同步逻辑 (此函数基本不变，但调用时机变了)
 function TeleportHandler.hypertrain_sync_speed(carriage_a, carriage_a_direction, carriage_b, carriage_b_direction)
   local train_a = carriage_a.train
   local train_b = carriage_b.train
+  if not (train_a and train_a.valid and train_b and train_b.valid) then return end
+
   local total_weight = train_a.weight + train_b.weight
   local average_speed = ((train_a.weight * math.abs(train_a.speed)) + (train_b.weight * math.abs(train_b.speed))) /
       total_weight
+
+  -- 限制最高速度
   local max_train_speed = 0.5
   average_speed = math.min(average_speed, max_train_speed)
+
   train_a.speed = average_speed * carriage_a_direction * Chuansongmen.train_forward_sign(carriage_a)
   train_b.speed = average_speed * carriage_b_direction * Chuansongmen.train_forward_sign(carriage_b)
 end
 
+--- 【全新重构】持续速度管理器 (由 control.lua 的 on_tick 循环驱动)
+-- 这个函数是解决问题的关键，它会持续为出口处的火车提供动力。
 function TeleportHandler.hypertrain_manage_speed(struct)
+  -- 必须同时存在入口车厢和出口车厢，才意味着火车正处于“跨界”传送状态
   if struct.carriage_behind and struct.carriage_behind.valid and struct.carriage_ahead and struct.carriage_ahead.valid then
-    if not struct.carriage_behind.train.manual_mode then
-      struct.carriage_behind.train.manual_mode = true
-    end
-    local passive_train_speed = 0.5
     local train_behind = struct.carriage_behind.train
     local train_ahead = struct.carriage_ahead.train
-    if math.abs(train_behind.speed) < passive_train_speed then
-      local speed_direction = Chuansongmen.elevator_east_sign(struct) *
-          Chuansongmen.carriage_east_sign(struct.carriage_behind) *
-          Chuansongmen.train_forward_sign(struct.carriage_behind)
-      train_behind.speed = passive_train_speed * speed_direction
+    local opposite_struct = State.get_opposite_struct(struct)
+
+    if not (train_behind and train_behind.valid and train_ahead and train_ahead.valid and opposite_struct) then
+      log_debug("传送门 DEBUG (hypertrain_manage_speed): 速度管理中止，火车或对侧传送门状态无效。")
+      return
     end
+
+    -- 【关键逻辑】主动为出口火车提供动力，防止停止
+    local passive_train_speed = 0.5 -- 定义一个最低推动速度
     if math.abs(train_ahead.speed) < passive_train_speed then
-      local speed_direction = Chuansongmen.elevator_east_sign(struct) *
-          Chuansongmen.carriage_east_sign(struct.carriage_ahead) * Chuansongmen.train_forward_sign(struct.carriage_ahead)
+      local speed_direction = Chuansongmen.elevator_east_sign(opposite_struct) *
+          Chuansongmen.carriage_east_sign(struct.carriage_ahead) *
+          Chuansongmen.train_forward_sign(struct.carriage_ahead)
+
+      -- 强行设置速度！
       train_ahead.speed = passive_train_speed * speed_direction
+      log_debug("传送门 DEBUG (hypertrain_manage_speed): [动力维持] 出口火车 (ID: " ..
+        train_ahead.id .. ") 速度过低，已强制加速至: " .. train_ahead.speed)
     end
+
+    -- 确保入口火车处于手动模式，以便我们能控制其速度
+    if not train_behind.manual_mode then
+      train_behind.manual_mode = true
+    end
+
+    -- 调用速度同步逻辑，平衡两个部分的速度
     TeleportHandler.hypertrain_sync_speed(
       struct.carriage_behind,
       Chuansongmen.elevator_east_sign(struct) * Chuansongmen.carriage_east_sign(struct.carriage_behind),
       struct.carriage_ahead,
-      Chuansongmen.elevator_east_sign(struct) * Chuansongmen.carriage_east_sign(struct.carriage_ahead)
+      Chuansongmen.elevator_east_sign(opposite_struct) * Chuansongmen.carriage_east_sign(struct.carriage_ahead)
     )
   end
 end
