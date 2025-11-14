@@ -5,7 +5,7 @@
 log("传送门 DEBUG (control.lua): 开始加载 control.lua ...")
 
 -- 【v94 新增】调试日志开关
-local DEBUG_LOGGING_ENABLED = true -- 设置为 true 开启日志，设置为 false 关闭日志
+local DEBUG_LOGGING_ENABLED = false -- 设置为 true 开启日志，设置为 false 关闭日志
 
 -- 【数据迁移】全局标志位，用于触发延迟迁移
 local migration_needed = false
