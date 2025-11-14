@@ -349,6 +349,45 @@ data:extend({
     -- ==================================
     -- 内部实体原型 (来自旧版 v37 & 新版 v90.9)
     -- ==================================
+
+    -- 【新增】用于火车传送的隐形拖船 (Tug)
+    {
+        type = "locomotive",
+        name = "chuansongmen-tug",
+        -- 放在一个不常用的组别中，避免出现在玩家的制作菜单里
+        subgroup = "other",
+        flags = { "not-blueprintable", "not-deconstructable" },
+        hidden = true, -- 在制作菜单中完全隐藏
+
+        -- 精确模仿SE的物理属性
+        collision_box = { { -0.6, -0.3 }, { 0.6, 0.3 } },
+        selection_box = { { -1, -1 }, { 1, 3 } },
+        max_health = 1000,
+        energy_per_hit_point = 5, -- 【崩溃修复】明确地提供这个必需的属性
+        weight = 20000,
+
+        -- 性能参数
+        max_power = "10000kW",
+        max_speed = 1,
+        reversing_power_modifier = 1,
+        braking_force = 10,
+
+        -- 物理参数，使其移动更“脚本化”
+        air_resistance = 0,
+        friction_force = 0.5,
+
+        -- 连接参数，使其能紧密连接
+        connection_distance = 0.1,
+        joint_distance = 0.1,
+
+        -- 无限能源，无需燃料
+        energy_source = { type = "void" },
+
+        -- 隐形图形
+        pictures = { rotated = blank_sprite },
+        vertical_selection_shift = -0.5,
+    },
+
     {
         type = "electric-pole",
         name = "chuansongmen-energy-pole",

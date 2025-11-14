@@ -12,7 +12,7 @@ local Constants = {}
 ---------------------------------------------------------------------------
 -- 备注：这些是从 control.lua 的 "核心常量定义" 部分移动过来的。
 Constants.name_entity = "chuansongmen-entity" -- 主实体名称
-Constants.name_tug = "chuansongmen-tug"       -- 拖车实体名称 (已废弃)
+Constants.name_tug = "chuansongmen-tug"       -- 拖车实体名称
 
 -- 【!! 火车检测关键修复 !!】修正脚本监听的爆炸物名称
 Constants.name_train_collision_detector = "chuansongmen-train-collision-detector-explosion"
@@ -21,10 +21,10 @@ Constants.name_train_collision_detector = "chuansongmen-train-collision-detector
 -- 行为参数
 ---------------------------------------------------------------------------
 -- 备注：这些是从 control.lua 的 "核心常量定义" 部分移动过来的。
-Constants.teleport_next_tick_frequency = 4                                              -- 火车传送检查的频率 (tick)
-Constants.player_teleport_distance = 15                                                 -- 玩家传送的距离 (已废弃，现使用精确坐标)
+Constants.teleport_next_tick_frequency = 4                                                -- 火车传送检查的频率 (tick)
+Constants.player_teleport_distance = 15                                                   -- 玩家传送的距离 (已废弃，现使用精确坐标)
 Constants.stock_types = { "locomotive", "cargo-wagon", "fluid-wagon", "artillery-wagon" } -- 脚本识别的火车车辆类型
-Constants.deconstruction_check_radius = 12                                              -- 检查传送门附近是否有火车的半径
+Constants.deconstruction_check_radius = 12                                                -- 检查传送门附近是否有火车的半径
 
 ---------------------------------------------------------------------------
 -- 几何与位置定义
@@ -70,30 +70,30 @@ Constants.internals = {
     shared = {
         ["chuansongmen-blocker-vertical"] = {
             { position = { x = -10.85, y = -4.85 }, direction = defines.direction.north },
-            { position = { x = -10.85, y = 7.85 }, direction = defines.direction.north },
-            { position = { x = -10.85, y = -2 },  direction = defines.direction.north },
-            { position = { x = 10.85, y = 7.85 }, direction = defines.direction.north },
-            { position = { x = 10.85, y = -4.85 }, direction = defines.direction.north },
-            { position = { x = 10.85, y = -2 },   direction = defines.direction.north },
+            { position = { x = -10.85, y = 7.85 },  direction = defines.direction.north },
+            { position = { x = -10.85, y = -2 },    direction = defines.direction.north },
+            { position = { x = 10.85, y = 7.85 },   direction = defines.direction.north },
+            { position = { x = 10.85, y = -4.85 },  direction = defines.direction.north },
+            { position = { x = 10.85, y = -2 },     direction = defines.direction.north },
         },
         ["chuansongmen-blocker-horizontal"] = {
-            { position = { x = 0, y = 10.85 },   direction = defines.direction.east },
+            { position = { x = 0, y = 10.85 },     direction = defines.direction.east },
             { position = { x = -7.85, y = 10.85 }, direction = defines.direction.east },
-            { position = { x = 7.85, y = 10.85 }, direction = defines.direction.east },
-            { position = { x = 0, y = -7.85 },   direction = defines.direction.east },
+            { position = { x = 7.85, y = 10.85 },  direction = defines.direction.east },
+            { position = { x = 0, y = -7.85 },     direction = defines.direction.east },
             { position = { x = -7.85, y = -7.85 }, direction = defines.direction.east },
-            { position = { x = 7.85, y = -7.85 }, direction = defines.direction.east },
+            { position = { x = 7.85, y = -7.85 },  direction = defines.direction.east },
         },
         -- 【v63 修正】恢复内部连接轨道
         ["chuansongmen-legacy-straight-rail"] = {
             { position = { x = -5.5, y = -1.5 }, direction = defines.direction.southeast },
-            { position = { x = 4.5, y = -1.5 }, direction = defines.direction.southwest },
+            { position = { x = 4.5, y = -1.5 },  direction = defines.direction.southwest },
         },
         ["chuansongmen-legacy-curved-rail"] = {
-            { position = { x = 2, y = -4 }, direction = defines.direction.south },
+            { position = { x = 2, y = -4 },  direction = defines.direction.south },
             { position = { x = -2, y = -4 }, direction = defines.direction.southwest },
-            { position = { x = 8, y = 2 }, direction = defines.direction.northwest },
-            { position = { x = -8, y = 2 }, direction = defines.direction.east },
+            { position = { x = 8, y = 2 },   direction = defines.direction.northwest },
+            { position = { x = -8, y = 2 },  direction = defines.direction.east },
         },
         ["chuansongmen-lamp"] = {
             { position = { x = 0, y = 0 }, direction = defines.direction.north },
@@ -118,7 +118,7 @@ Constants.internals = {
         -- 【v63 修正】添加 east 方向信号灯
         ["chuansongmen-rail-signal"] = {
             { position = { x = -11.5, y = 4.5 }, direction = defines.direction.west },
-            { position = { x = 11.5, y = 4.5 }, direction = defines.direction.west },
+            { position = { x = 11.5, y = 4.5 },  direction = defines.direction.west },
         },
     },
     [defines.direction.west] = {
@@ -130,7 +130,7 @@ Constants.internals = {
         },
         ["chuansongmen-rail-signal"] = {
             { position = { x = -11.5, y = 1.5 }, direction = defines.direction.east },
-            { position = { x = 11.5, y = 1.5 }, direction = defines.direction.east },
+            { position = { x = 11.5, y = 1.5 },  direction = defines.direction.east },
         },
     }
 }
