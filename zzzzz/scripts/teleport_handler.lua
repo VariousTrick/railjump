@@ -40,6 +40,104 @@ function TeleportHandler.init(dependencies)
 end
 
 -- =================================================================================
+-- Cybersyn 兼容性补丁 (核心新增部分)
+-- =================================================================================
+
+-- 【新功能】在无 SE 环境下，手动迁移 Cybersyn 数据并补全时刻表
+-- 修改说明：增加了 snapshot 参数，直接使用传送前保存的数据快照
+local function handle_cybersyn_migration(old_train_id, new_train, snapshot)
+  if script.active_mods["space-exploration"] then return end
+
+  -- 核心修改：直接检查快照是否存在
+  local c_train = snapshot
+  if not c_train then
+    log_debug("传送门 Cybersyn 兼容: 未提供数据快照 (可能是非 Cybersyn 列车或读取失败)，跳过迁移。")
+    return
+  end
+
+  log_debug("传送门 Cybersyn 兼容: [无SE模式] 开始为火车 " .. new_train.id .. " (旧ID: " .. old_train_id .. ") 注入快照数据...")
+
+  -- 1. 核心迁移：更新实体引用并搬家
+  -- 必须更新 entity 引用，否则 Cybersyn 会操作已销毁的实体
+  c_train.entity = new_train
+
+  -- 将数据写入新 ID 的位置
+  if remote.interfaces["cybersyn"] and remote.interfaces["cybersyn"]["write_global"] then
+    remote.call("cybersyn", "write_global", c_train, "trains", new_train.id)
+
+    -- 清除旧 ID 的数据 (虽然 Cybersyn 可能已经删了，但为了保险再写一次 nil)
+    remote.call("cybersyn", "write_global", nil, "trains", old_train_id)
+
+    -- >>>>> [新增：强制清除标签并验证] >>>>>
+    -- 1. 显式调用接口，定位到具体字段进行删除 (置为 nil)
+    remote.call("cybersyn", "write_global", nil, "trains", new_train.id, "se_is_being_teleported")
+
+    -- 2. 立即读取验证，并在游戏内报告结果
+    local _, check_val = pcall(remote.call, "cybersyn", "read_global", "trains", new_train.id, "se_is_being_teleported")
+    if check_val == nil then
+      -- game.print(">>> [传送门] ID: " .. new_train.id .. " 标签清除成功 (当前状态: nil)。")
+    else
+      -- game.print(">>> [传送门] ID: " .. new_train.id .. " 标签清除失败！(当前状态: " .. tostring(check_val) .. ")")
+    end
+    -- <<<<< [新增结束] <<<<<
+  end
+
+  log_debug("传送门 Cybersyn 兼容: 数据注入完成。")
+
+  -- 2. 时刻表补全 (Rail Patch)
+  local schedule = new_train.schedule
+  if schedule and schedule.records then
+    local records = schedule.records
+    local current_index = schedule.current
+    local current_record = records[current_index]
+
+    if current_record and current_record.station then
+      -- 尝试从快照获取目标站点信息
+      local target_station_id = nil
+      -- 状态修正：1=TO_P, 3=TO_R, 5=TO_D, 6=TO_D_BYPASS (关键修复)
+      if c_train.status == 1 then target_station_id = c_train.p_station_id end
+      if c_train.status == 3 then target_station_id = c_train.r_station_id end
+      if c_train.status == 5 or c_train.status == 6 then
+        target_station_id = c_train.depot_id
+        log_debug("传送门 Cybersyn 兼容: 检测到回车库状态 (" .. c_train.status .. ")，准备补全 Rail。")
+      end
+
+      if target_station_id then
+        local st_data = nil
+        -- 区分读取：状态 5/6 读 depots 表，其他读 stations 表
+        if c_train.status == 5 or c_train.status == 6 then
+          st_data = remote.call("cybersyn", "read_global", "depots", target_station_id)
+        else
+          st_data = remote.call("cybersyn", "read_global", "stations", target_station_id)
+        end
+        if st_data and st_data.entity_stop and st_data.entity_stop.valid then
+          local rail = st_data.entity_stop.connected_rail
+
+          -- 检查是否在新地表
+          if rail and rail.surface == new_train.front_stock.surface then
+            log_debug("传送门 Cybersyn 兼容: [Rail Patch] 正在插入 Rail 导航记录...")
+
+            table.insert(records, current_index, {
+              rail = rail,
+              rail_direction = st_data.entity_stop.connected_rail_direction,
+              temporary = true,
+              wait_conditions = { { type = "time", ticks = 1 } }
+            })
+
+            schedule.records = records
+            new_train.schedule = schedule
+
+            log_debug("传送门 Cybersyn 兼容: 时刻表补全成功！")
+          else
+            log_debug("传送门 Cybersyn 兼容: 警告 - 目标铁轨不在当前地表，无法补全。")
+          end
+        end
+      end
+    end
+  end
+end
+
+-- =================================================================================
 -- 火车传送核心逻辑
 -- =================================================================================
 
@@ -109,6 +207,18 @@ function TeleportHandler.finish_teleport(struct, opposite_struct)
         Chuansongmen.carriage_east_sign(opposite_struct.carriage_ahead) *
         Chuansongmen.train_forward_sign(opposite_struct.carriage_ahead)
     final_train.speed = speed_direction * math.abs(opposite_struct.old_train_speed)
+
+    -- >>>> [开始修改] >>>>
+    -- 【核心注入】如果存在旧火车ID，执行 Cybersyn 数据迁移与补票
+    if opposite_struct.old_train_id then
+      -- 传入之前保存的 snapshot
+      handle_cybersyn_migration(opposite_struct.old_train_id, final_train, opposite_struct.cybersyn_snapshot)
+
+      -- 迁移完成后，立即清理快照，防止内存泄漏或污染
+      opposite_struct.cybersyn_snapshot = nil
+    end
+    -- <<<< [修改结束] <<<<
+
     log_debug("传送门 DEBUG (finish_teleport): [最小干预策略] 不再调用go_to_station。")
     log_debug("传送门 DEBUG (finish_teleport): 状态恢复完毕。模式: " ..
       (final_train.manual_mode and "手动" or "自动") .. ", 速度: " .. final_train.speed)
@@ -183,6 +293,23 @@ function TeleportHandler.teleport_next(struct)
     if not carriage_ahead then
       opposite.carriage_ahead_manual_mode, opposite.old_train_speed, opposite.old_train_id = carriage.train.manual_mode,
           carriage.train.speed, carriage.train.id
+
+      -- >>>> [开始插入] >>>>
+      -- [Cybersyn 兼容] 在列车销毁前，抢先读取并备份数据！
+      -- >>>>> 【新增：免死金牌】 >>>>>
+      -- 标记旧火车正在传送，禁止 Cybersyn 撤销发货单！
+      -- 你插入的代码开始
+      if remote.interfaces["cybersyn"] and remote.interfaces["cybersyn"]["read_global"] then
+        remote.call("cybersyn", "write_global", true, "trains", carriage.train.id, "se_is_being_teleported")
+        local status, c_data = pcall(remote.call, "cybersyn", "read_global", "trains", carriage.train.id)
+        if status and c_data then
+          log_debug("传送门 Cybersyn 兼容: 已捕获旧火车 (ID: " .. carriage.train.id .. ") 的数据快照。")
+          opposite.cybersyn_snapshot = c_data
+        end -- 结束 if status
+      end -- 结束 if remote
+
+      -- <<<< [插入结束] <<<<
+
       log_debug("传送门 DEBUG (teleport_next): [状态保存] 已保存火车状态。速度: " .. opposite.old_train_speed)
     end
 

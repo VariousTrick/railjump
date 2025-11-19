@@ -53,7 +53,7 @@ function CybersynCompat.update_connection(portal_struct, opposite_struct, connec
     if connect then
       -- 【完美伪装】构建一个包含必要属性的假对象，特别是 valid = true
       local fake_station1 = {
-        valid = true,                  -- 关键！骗过 Cybersyn 的垃圾清理检查
+        valid = true,                          -- 关键！骗过 Cybersyn 的垃圾清理检查
         name = "se-space-elevator-train-stop", -- 关键！骗过 SE 兼容脚本的类型检查
         unit_number = station1.unit_number,
         surface = { index = station1.surface.index, name = station1.surface.name, valid = true },
@@ -73,10 +73,22 @@ function CybersynCompat.update_connection(portal_struct, opposite_struct, connec
       end
 
       -- 我们必须传递真实的实体给 se_elevators，因为 SE 可能会用它们来检查位置
-      local ground_end_data = { elevator = ground_portal.entity, stop = ground_portal.station, surface_id = ground_portal
-      .surface.index, stop_id = ground_portal.station.unit_number, elevator_id = ground_portal.entity.unit_number }
-      local orbit_end_data = { elevator = orbit_portal.entity, stop = orbit_portal.station, surface_id = orbit_portal
-      .surface.index, stop_id = orbit_portal.station.unit_number, elevator_id = orbit_portal.entity.unit_number }
+      local ground_end_data = {
+        elevator = ground_portal.entity,
+        stop = ground_portal.station,
+        surface_id = ground_portal
+            .surface.index,
+        stop_id = ground_portal.station.unit_number,
+        elevator_id = ground_portal.entity.unit_number
+      }
+      local orbit_end_data = {
+        elevator = orbit_portal.entity,
+        stop = orbit_portal.station,
+        surface_id = orbit_portal
+            .surface.index,
+        stop_id = orbit_portal.station.unit_number,
+        elevator_id = orbit_portal.entity.unit_number
+      }
 
       local fake_elevator_data = {
         ground = ground_end_data,

@@ -26,7 +26,7 @@ end
 function Util.position_in_rect(rect, pos)
     if not (rect and rect.left_top and rect.right_bottom and pos) then return false end
     return pos.x >= rect.left_top.x and pos.x <= rect.right_bottom.x and pos.y >= rect.left_top.y and
-    pos.y <= rect.right_bottom.y
+        pos.y <= rect.right_bottom.y
 end
 
 function Util.get_rolling_stock_train_id(rolling_stock)
@@ -144,7 +144,7 @@ function Util.transfer_all_inventories(source_entity, destination_entity, move_i
         end
     else
         log_util("!! 警告 (transfer_all_inventories): [主方案失败] 'get_inventories' 调用失败。错误: " ..
-        tostring(inventories_or_error) .. " 将启动 [SE后备方案]...")
+            tostring(inventories_or_error) .. " 将启动 [SE后备方案]...")
     end
 
     log_util("DEBUG (transfer_all_inventories): [SE后备方案] 正在根据实体类型进行转移...")
@@ -202,7 +202,7 @@ function Util.transfer_inventory_filters(source_entity, destination_entity, inve
     local pcall_success, pcall_result_or_error = pcall(function() return destination_entity.supports_inventory_bar() end)
     if not pcall_success then
         log_util("!! 严重兼容性错误 (transfer_inventory_filters): 尝试调用 'supports_inventory_bar' 时发生崩溃！错误信息: " ..
-        tostring(pcall_result_or_error))
+            tostring(pcall_result_or_error))
     elseif pcall_result_or_error == true then
         log_util("DEBUG (transfer_inventory_filters): 实体报告支持过滤条，正在尝试转移...")
         local transfer_success, transfer_error = pcall(function()
@@ -262,7 +262,7 @@ function Util.consume_shared_resources(player, entry_portal, opposite_portal, it
         log_util("DEBUG (consume_shared_resources): 在对侧传送门 (ID: " .. opposite_portal.id .. ") 成功消耗远程资源。")
 
         local gps_tag = "[gps=" ..
-        opposite_portal.position.x .. "," .. opposite_portal.position.y .. "," .. opposite_portal.surface.name .. "]"
+            opposite_portal.position.x .. "," .. opposite_portal.position.y .. "," .. opposite_portal.surface.name .. "]"
         local message = { "messages.chuansongmen-info-remote-consumption", entry_portal.name, gps_tag, opposite_portal
             .name }
 
@@ -278,7 +278,7 @@ function Util.consume_shared_resources(player, entry_portal, opposite_portal, it
     -- 3. 如果两边都失败
     ::fail::
     log_util("!! 警告 (consume_shared_resources): 入口 (ID: " ..
-    entry_portal.id .. ") " .. (opposite_portal and ("和对侧 (ID: " .. opposite_portal.id .. ") ") or "") .. "均缺少资源。")
+        entry_portal.id .. ") " .. (opposite_portal and ("和对侧 (ID: " .. opposite_portal.id .. ") ") or "") .. "均缺少资源。")
     local failed_message = { "messages.chuansongmen-error-teleport-failed-resources", entry_portal.name, (opposite_portal and opposite_portal.name or "???") }
     if player and player.valid then
         player.print(failed_message)

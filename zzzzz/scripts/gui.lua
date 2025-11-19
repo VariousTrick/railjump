@@ -15,7 +15,7 @@ local log_debug = function() end
 
 local function is_resource_cost_enabled()
     return settings.startup["chuansongmen-enable-resource-cost"] and
-    settings.startup["chuansongmen-enable-resource-cost"].value or false
+        settings.startup["chuansongmen-enable-resource-cost"].value or false
 end
 
 --- 依赖注入函数
@@ -81,13 +81,13 @@ function GUI.build_edit_name_flow(parent_flow, my_data, player)
     local textfield = parent_flow.add({
         type = "textfield",
         name = "chuansongmen_rename_textfield",
-        text = initial_text, -- 使用包含富文本的初始文本
-        icon_selector = true, -- 【核心修正】启用游戏内置的图标选择功能
+        text = initial_text,         -- 使用包含富文本的初始文本
+        icon_selector = true,        -- 【核心修正】启用游戏内置的图标选择功能
         handler = "on_gui_confirmed" -- 监听回车键事件
     })
-    textfield.style.width = 300 -- 加宽文本框以容纳图标
-    textfield.focus()        -- 自动聚焦，让玩家可以直接输入
-    textfield.select_all()   -- 自动全选，方便玩家直接覆盖输入
+    textfield.style.width = 300      -- 加宽文本框以容纳图标
+    textfield.focus()                -- 自动聚焦，让玩家可以直接输入
+    textfield.select_all()           -- 自动全选，方便玩家直接覆盖输入
 
     -- 3. 添加确认按钮
     parent_flow.add({
@@ -114,7 +114,7 @@ function GUI.build_or_update(player, entity)
     if storage.chuansongmen_player_settings[player.index] == nil then storage.chuansongmen_player_settings[player.index] = {} end
     if storage.chuansongmen_player_settings[player.index].show_preview == nil then
         local default = player.mod_settings["chuansongmen_show_preview"] and
-        player.mod_settings["chuansongmen_show_preview"].value
+            player.mod_settings["chuansongmen_show_preview"].value
         storage.chuansongmen_player_settings[player.index].show_preview = (default == true)
     end
     local player_settings = { show_preview = storage.chuansongmen_player_settings[player.index].show_preview }
@@ -128,8 +128,11 @@ function GUI.build_or_update(player, entity)
         return
     end
 
-    local anchor = { gui = defines.relative_gui_type.assembling_machine_gui, position = defines.relative_gui_position
-    .right }
+    local anchor = {
+        gui = defines.relative_gui_type.assembling_machine_gui,
+        position = defines.relative_gui_position
+            .right
+    }
     local frame = gui.add({ type = "frame", name = "chuansongmen_main_frame", direction = "vertical", anchor = anchor, tags = { unit_number_str = tostring(entity.unit_number) } })
 
     -- 【修正】标题行：使其也能显示图标和名称
@@ -137,13 +140,19 @@ function GUI.build_or_update(player, entity)
     if my_data.icon and my_data.icon.type and my_data.icon.name then
         -- 如果有图标，标题格式为：[图标] 名称 (ID: XX)
         title_caption = "[" ..
-        my_data.icon.type .. "=" .. my_data.icon.name .. "] " .. my_data.name .. " (ID: " .. my_data.id .. ")"
+            my_data.icon.type .. "=" .. my_data.icon.name .. "] " .. my_data.name .. " (ID: " .. my_data.id .. ")"
     else
         -- 如果没有图标，则使用旧格式
         title_caption = "传送门 " .. my_data.name .. " (ID: " .. my_data.id .. ")"
     end
-    frame.add({ type = "flow", name = "title_flow" }).add({ type = "label", name = "title", caption = title_caption, style =
-    "frame_title", ignored_by_interaction = true })
+    frame.add({ type = "flow", name = "title_flow" }).add({
+        type = "label",
+        name = "title",
+        caption = title_caption,
+        style =
+        "frame_title",
+        ignored_by_interaction = true
+    })
 
     -- Cybersyn 开关 (保持不变，因为其内部tooltip是简单字符串)
     if CybersynCompat and CybersynCompat.is_present then
@@ -188,11 +197,15 @@ function GUI.build_or_update(player, entity)
     pair_status_flow.add({ type = "label", caption = "传送配对: " })
     if my_data.paired_to_id then
         local opposite = State.get_opposite_struct(my_data)
-        pair_status_flow.add({ type = "label", caption = "已连接到 " ..
-        (opposite and opposite.name or "未知") ..
-        " (ID: " ..
-        tostring(my_data.paired_to_id) ..
-        ") [" .. (opposite and opposite.entity and opposite.entity.surface.name or "未知地表") .. "]", style = "bold_label" })
+        pair_status_flow.add({
+            type = "label",
+            caption = "已连接到 " ..
+                (opposite and opposite.name or "未知") ..
+                " (ID: " ..
+                tostring(my_data.paired_to_id) ..
+                ") [" .. (opposite and opposite.entity and opposite.entity.surface.name or "未知地表") .. "]",
+            style = "bold_label"
+        })
     else
         pair_status_flow.add({ type = "label", caption = { "gui.chuansongmen-unlinked" } })
     end
@@ -212,7 +225,7 @@ function GUI.build_or_update(player, entity)
             end
 
             local display_name = icon_prefix ..
-            data.name .. " (ID: " .. tostring(data.id) .. ") [" .. data.entity.surface.name .. "]"
+                data.name .. " (ID: " .. tostring(data.id) .. ") [" .. data.entity.surface.name .. "]"
 
             if data.paired_to_id then
                 local partner = State.get_struct_by_id(data.paired_to_id)
@@ -222,7 +235,7 @@ function GUI.build_or_update(player, entity)
                     partner_icon_prefix = "[" .. partner.icon.type .. "=" .. partner.icon.name .. "] "
                 end
                 display_name = display_name ..
-                " [已配对: " .. (partner and (partner_icon_prefix .. partner.name) or "未知") .. "]"
+                    " [已配对: " .. (partner and (partner_icon_prefix .. partner.name) or "未知") .. "]"
             end
 
             table.insert(dropdown_items, display_name)
@@ -266,14 +279,20 @@ function GUI.build_or_update(player, entity)
 
     -- 选项 (保持本地化)
     local options_flow = content_flow.add({ type = "flow", name = "options_flow" })
-    options_flow.add({ type = "checkbox", name = "chuansongmen_preview_checkbox", state = player_settings.show_preview, caption = { "mod-setting-name.chuansongmen_show_preview" }, handler =
-    "on_gui_checked_state_changed" })
+    options_flow.add({
+        type = "checkbox",
+        name = "chuansongmen_preview_checkbox",
+        state = player_settings.show_preview,
+        caption = { "mod-setting-name.chuansongmen_show_preview" },
+        handler =
+        "on_gui_checked_state_changed"
+    })
 
     -- 传送与观察按钮 (保持本地化)
     local teleport_flow = content_flow.add({ type = "flow", name = "teleport_flow" })
     teleport_flow.add({ type = "button", name = "player_teleport_button", caption = { "gui.chuansongmen-button-player-teleport" } })
     local view_caption = (remote.interfaces["space-exploration"] and { "gui.chuansongmen-button-remote-view" }) or
-    { "gui.chuansongmen-button-map-view" }
+        { "gui.chuansongmen-button-map-view" }
     teleport_flow.add({ type = "button", name = "se_remote_view_button", caption = view_caption })
 
     -- 根据状态禁用按钮
@@ -291,8 +310,14 @@ function GUI.build_or_update(player, entity)
             local preview_frame = frame.add({ type = "frame", name = "preview_frame", style = "inside_shallow_frame" })
             preview_frame.style.horizontally_stretchable = true
             preview_frame.style.vertically_stretchable = true
-            local camera = preview_frame.add({ type = "camera", name = "preview_camera", position = opposite.entity
-            .position, zoom = 0.15, surface_index = opposite.entity.surface.index })
+            local camera = preview_frame.add({
+                type = "camera",
+                name = "preview_camera",
+                position = opposite.entity
+                    .position,
+                zoom = 0.15,
+                surface_index = opposite.entity.surface.index
+            })
             camera.style.horizontally_stretchable = true
             camera.style.vertically_stretchable = true
         end
@@ -302,14 +327,19 @@ end
 
 function GUI.open_fullscreen_camera_view(player, target_struct)
     log_debug("传送门 GUI (open_fullscreen_camera_view): 为玩家 " ..
-    player.name .. " 打开全屏观察, 目标: " .. target_struct.name .. " (ID: " .. target_struct.id .. ")")
+        player.name .. " 打开全屏观察, 目标: " .. target_struct.name .. " (ID: " .. target_struct.id .. ")")
     local screen_gui = player.gui.screen
     if screen_gui.chuansongmen_fullscreen_view_frame then
         screen_gui.chuansongmen_fullscreen_view_frame.destroy()
     end
 
-    local frame = screen_gui.add({ type = "frame", name = "chuansongmen_fullscreen_view_frame", direction = "vertical", style =
-    "frame" })
+    local frame = screen_gui.add({
+        type = "frame",
+        name = "chuansongmen_fullscreen_view_frame",
+        direction = "vertical",
+        style =
+        "frame"
+    })
     frame.auto_center = true
 
     local title_flow = frame.add { type = "flow", direction = "horizontal" }
@@ -401,17 +431,17 @@ function GUI.handle_click(event)
 
             -- 步骤 2: 打印调试日志，记录我们将要执行的操作
             log_debug("传送门 GUI (handle_click): 玩家 " ..
-            player.name .. " 正在使用 2.0 API (set_controller) 进行地图观察。缩放级别: " .. current_zoom)
+                player.name .. " 正在使用 2.0 API (set_controller) 进行地图观察。缩放级别: " .. current_zoom)
 
             -- 步骤 3: 在打开新视图前，先关闭当前的传送门 GUI，这是个好习惯
             player.opened = nil
 
             -- 步骤 4: 调用新的 API，将玩家的控制器设置为“远程模式”
             player.set_controller({
-                type = defines.controllers.remote, -- 控制器类型：设置为远程模式
+                type = defines.controllers.remote,   -- 控制器类型：设置为远程模式
                 position = opposite.entity.position, -- 目标坐标：设置为对侧传送门的位置
-                surface = opposite.entity.surface, -- 目标地表：设置为对侧传送门的地表
-                zoom = current_zoom  -- 缩放级别：设置为玩家当前的摄像头缩放级别
+                surface = opposite.entity.surface,   -- 目标地表：设置为对侧传送门的地表
+                zoom = current_zoom                  -- 缩放级别：设置为玩家当前的摄像头缩放级别
             })
         end
 

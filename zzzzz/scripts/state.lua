@@ -29,7 +29,7 @@ function State.initialize_globals()
     if not storage.chuansongmen_data then
         storage.chuansongmen_data = {
             portals = {}, -- 存储所有传送门数据的表
-            next_id = 1 -- 用于分配唯一 ID
+            next_id = 1   -- 用于分配唯一 ID
         }
         log_debug("传送门 State (initialize_globals): 未找到现有数据，已创建新的 storage.chuansongmen_data。")
     end

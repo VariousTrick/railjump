@@ -41,7 +41,7 @@ function PortalManager.setup_internal_entities(struct)
     log_debug("传送门 DEBUG (setup_internal_entities): 开始为传送门 ID: " .. struct.id .. " 收集内部实体定义...")
 
     local entities_to_create = {} -- 用于收集所有待创建实体的列表
-    local sub_entities = {}   -- 用于存储非特殊内部实体
+    local sub_entities = {}       -- 用于存储非特殊内部实体
 
     local se_direction
     if struct.direction == defines.direction.east or struct.direction == defines.direction.south then
@@ -50,11 +50,11 @@ function PortalManager.setup_internal_entities(struct)
         se_direction = defines.direction.west
     end
     log_debug("传送门 DEBUG (setup_internal_entities): 实体方向: " ..
-    struct.direction .. ", 映射到内部逻辑方向: " .. (se_direction == defines.direction.east and "east" or "west"))
+        struct.direction .. ", 映射到内部逻辑方向: " .. (se_direction == defines.direction.east and "east" or "west"))
 
     if not Constants.internals[se_direction] then
         log_debug("传送门 致命错误 (setup_internal_entities): 无法在 Constants.internals 中找到方向 " ..
-        tostring(se_direction) .. " 的定义！")
+            tostring(se_direction) .. " 的定义！")
         game.print("传送门 致命错误: 内部实体配置错误，请检查日志。")
         return
     end
@@ -91,12 +91,12 @@ function PortalManager.setup_internal_entities(struct)
     log_debug("传送门 DEBUG (setup_internal_entities): 开始按固定顺序创建内部实体...")
     for i, creation_data in ipairs(entities_to_create) do
         log_debug("传送门 DEBUG (setup_internal_entities): 正在创建 [" ..
-        i .. "/" .. #entities_to_create .. "]: " .. creation_data.name)
+            i .. "/" .. #entities_to_create .. "]: " .. creation_data.name)
         local sub_entity = struct.surface.create_entity(creation_data)
 
         if not sub_entity then
             log_debug("传送门 致命错误 (setup_internal_entities): create_entity 失败！原型: " ..
-            creation_data.name .. " 位置: " .. serpent.line(creation_data.position))
+                creation_data.name .. " 位置: " .. serpent.line(creation_data.position))
             game.print("传送门 致命错误: 内部实体创建失败！原型: " .. creation_data.name)
         else
             sub_entity.destructible = false
@@ -107,7 +107,7 @@ function PortalManager.setup_internal_entities(struct)
                 struct.station = sub_entity
             elseif sub_entity.name == "chuansongmen-energy-interface" then
                 log_debug(
-                "传送门 DEBUG (setup_internal_entities): 已创建 [energy-interface], 存入 struct.energy_interface_actual")
+                    "传送门 DEBUG (setup_internal_entities): 已创建 [energy-interface], 存入 struct.energy_interface_actual")
                 struct.energy_interface_actual = sub_entity
                 sub_entity.power_usage = 0
                 sub_entity.energy = 0
@@ -129,7 +129,7 @@ function PortalManager.setup_internal_entities(struct)
     local collider_pos_offset = Constants.space_elevator_collider_position[se_direction]
     if not collider_pos_offset then
         log_debug("传送门 致命错误 (setup_internal_entities): 无法找到方向 " ..
-        tostring(se_direction) .. " 的碰撞器位置 (collider_position)！")
+            tostring(se_direction) .. " 的碰撞器位置 (collider_position)！")
     else
         log_debug("传送门 DEBUG (setup_internal_entities): 正在创建碰撞器 (chuansongmen-collider)...")
         struct.collider = struct.surface.create_entity { name = "chuansongmen-collider", position = Util.vectors_add(struct.position, collider_pos_offset), force = "neutral" }
@@ -143,8 +143,11 @@ function PortalManager.setup_internal_entities(struct)
     -- 5. 设置区域 (顺序不影响)
     local watch_rect = Constants.watch_rect_by_dir[se_direction]
     if watch_rect then
-        struct.watch_area = { left_top = Util.vectors_add(struct.position, watch_rect.left_top), right_bottom = Util
-        .vectors_add(struct.position, watch_rect.right_bottom) }
+        struct.watch_area = {
+            left_top = Util.vectors_add(struct.position, watch_rect.left_top),
+            right_bottom = Util
+                .vectors_add(struct.position, watch_rect.right_bottom)
+        }
         log_debug("传送门 DEBUG (setup_internal_entities): watch_area 设置完毕。")
     else
         log_debug("传送门 错误 (setup_internal_entities): 无法设置 watch_area, 方向 " .. tostring(se_direction) .. " 定义缺失。")
@@ -152,8 +155,11 @@ function PortalManager.setup_internal_entities(struct)
 
     local output_rect = Constants.output_area[se_direction]
     if output_rect then
-        struct.output_area = { left_top = Util.vectors_add(struct.position, output_rect.left_top), right_bottom = Util
-        .vectors_add(struct.position, output_rect.right_bottom) }
+        struct.output_area = {
+            left_top = Util.vectors_add(struct.position, output_rect.left_top),
+            right_bottom = Util
+                .vectors_add(struct.position, output_rect.right_bottom)
+        }
         log_debug("传送门 DEBUG (setup_internal_entities): output_area 设置完毕。")
     else
         log_debug("传送门 错误 (setup_internal_entities): 无法设置 output_area, 方向 " .. tostring(se_direction) .. " 定义缺失。")
@@ -171,7 +177,7 @@ end
 function PortalManager.on_built(entity)
     local id = MOD_DATA.next_id
     log_debug("传送门 DEBUG (on_built): 传送门被建造。新传送门 ID: " ..
-    id .. ", 实体 unit_number: " .. entity.unit_number .. ", 名称: " .. entity.name)
+        id .. ", 实体 unit_number: " .. entity.unit_number .. ", 名称: " .. entity.name)
     local struct = {
         id = id,
         name = tostring(id),
@@ -188,7 +194,7 @@ function PortalManager.on_built(entity)
         -- =======================================================
         -- 【电网维持 - 状态机 v2.0】
         power_connection_status = "disconnected", -- "disconnected", "connected", "disconnected_by_system"
-        power_grid_expires_at = 0,        -- 记录电网服务到期的游戏tick
+        power_grid_expires_at = 0,                -- 记录电网服务到期的游戏tick
         -- =======================================================
         cybersyn_connected = false,
         carriage_ahead = nil,
@@ -254,7 +260,7 @@ function PortalManager.on_mined(entity)
             local power_partner = State.get_struct_by_id(my_data.power_partner_id)
             if power_partner then
                 local primary_struct, secondary_struct = my_data.is_power_primary and { my_data, power_partner } or
-                { power_partner, my_data }
+                    { power_partner, my_data }
                 PortalManager.disconnect_wires(primary_struct, secondary_struct)
                 power_partner.power_partner_id = nil
                 power_partner.is_power_primary = false
@@ -272,8 +278,10 @@ function PortalManager.on_mined(entity)
         if my_data.station and my_data.station.valid then my_data.station.destroy() end
         if my_data.power_switch and my_data.power_switch.valid then my_data.power_switch.destroy() end
         if my_data.electric_pole and my_data.electric_pole.valid then my_data.electric_pole.destroy() end
-        if my_data.energy_interface_actual and my_data.energy_interface_actual.valid then my_data
-                .energy_interface_actual.destroy() end
+        if my_data.energy_interface_actual and my_data.energy_interface_actual.valid then
+            my_data
+                .energy_interface_actual.destroy()
+        end
         if my_data.collider and my_data.collider.valid then my_data.collider.destroy() end
         if my_data.sub_entities then
             log_debug("传送门 DEBUG (on_mined): 正在销毁 " .. #my_data.sub_entities .. " 个 sub_entities (轨道, 灯等)...")
@@ -300,27 +308,31 @@ function PortalManager.connect_wires(primary_struct, secondary_struct)
     if primary_struct.power_switch and primary_struct.electric_pole and secondary_struct.electric_pole and primary_struct.power_switch.valid and primary_struct.electric_pole.valid and secondary_struct.electric_pole.valid then
         log_debug("传送门 DEBUG (connect_wires): 所有电网实体有效, 开始连接...")
         primary_struct.electric_pole.get_wire_connector(defines.wire_connector_id.pole_copper, true).connect_to(
-        primary_struct.power_switch.get_wire_connector(defines.wire_connector_id.power_switch_left_copper, true), false,
+            primary_struct.power_switch.get_wire_connector(defines.wire_connector_id.power_switch_left_copper, true),
+            false,
             defines.wire_origin.script)
         log_debug("传送门 DEBUG (connect_wires): 主控电线杆 -> 主控开关 (左侧铜线) 已连接。")
         secondary_struct.electric_pole.get_wire_connector(defines.wire_connector_id.pole_copper, true).connect_to(
-        primary_struct.power_switch.get_wire_connector(defines.wire_connector_id.power_switch_right_copper, true), false,
+            primary_struct.power_switch.get_wire_connector(defines.wire_connector_id.power_switch_right_copper, true),
+            false,
             defines.wire_origin.script)
         log_debug("传送门 DEBUG (connect_wires): 次控电线杆 -> 主控开关 (右侧铜线) 已连接。")
         primary_struct.power_switch.power_switch_state = true
         primary_struct.electric_pole.get_wire_connector(defines.wire_connector_id.circuit_red, true).connect_to(
-        secondary_struct.electric_pole.get_wire_connector(defines.wire_connector_id.circuit_red, true), false,
+            secondary_struct.electric_pole.get_wire_connector(defines.wire_connector_id.circuit_red, true), false,
             defines.wire_origin.script)
         primary_struct.electric_pole.get_wire_connector(defines.wire_connector_id.circuit_green, true).connect_to(
-        secondary_struct.electric_pole.get_wire_connector(defines.wire_connector_id.circuit_green, true), false,
+            secondary_struct.electric_pole.get_wire_connector(defines.wire_connector_id.circuit_green, true), false,
             defines.wire_origin.script)
         log_debug("传送门 DEBUG (connect_wires): 红绿电路网络线已连接, 开关已打开。")
     else
         log_debug("传送门 错误 (connect_wires): 连接失败, 缺少必要的电网实体或实体无效。")
         if not primary_struct.power_switch then log_debug("错误详情: 主控 (ID " .. primary_struct.id .. ") 缺少 power_switch") end
         if not primary_struct.electric_pole then log_debug("错误详情: 主控 (ID " .. primary_struct.id .. ") 缺少 electric_pole") end
-        if not secondary_struct.electric_pole then log_debug("错误详情: 次控 (ID " ..
-            secondary_struct.id .. ") 缺少 electric_pole") end
+        if not secondary_struct.electric_pole then
+            log_debug("错误详情: 次控 (ID " ..
+                secondary_struct.id .. ") 缺少 electric_pole")
+        end
     end
 end
 
@@ -328,7 +340,8 @@ end
 -- 备注：此版本只断开电力连接，并保留电路网络信号传输。
 function PortalManager.disconnect_wires(primary_struct, secondary_struct)
     log_debug("传送门 DEBUG (disconnect_wires): 正在断开电线: 主控ID " ..
-    (primary_struct and primary_struct.id or "nil") .. ", 次控ID " .. (secondary_struct and secondary_struct.id or "nil"))
+        (primary_struct and primary_struct.id or "nil") ..
+        ", 次控ID " .. (secondary_struct and secondary_struct.id or "nil"))
     if primary_struct and primary_struct.power_switch and primary_struct.power_switch.valid then
         -- 关闭电源开关
         primary_struct.power_switch.power_switch_state = false
@@ -348,7 +361,8 @@ end
 function PortalManager.pair_portals(player_index, portal_id, target_id)
     local player = game.get_player(player_index)
     log_debug("传送门 DEBUG (remote): 收到 pair_portals 调用, 玩家: " ..
-    (player and player.name or "未知") .. ", portal_id: " .. tostring(portal_id) .. ", target_id: " .. tostring(target_id))
+        (player and player.name or "未知") ..
+        ", portal_id: " .. tostring(portal_id) .. ", target_id: " .. tostring(target_id))
     if not (player and portal_id and target_id) then
         log_debug("传送门 错误 (remote pair_portals): 参数无效。"); return
     end
@@ -368,7 +382,7 @@ function PortalManager.pair_portals(player_index, portal_id, target_id)
     if not is_compatible then
         player.print({ "messages.chuansongmen-error-direction-mismatch-rich" })
         log_debug("传送门 警告 (pair_portals): ID " ..
-        my_data.id .. " 和 ID " .. target_struct.id .. " 方向不兼容 (" .. reason .. ")，配对被取消。")
+            my_data.id .. " 和 ID " .. target_struct.id .. " 方向不兼容 (" .. reason .. ")，配对被取消。")
         return
     end
 
@@ -402,7 +416,7 @@ function PortalManager.pair_portals(player_index, portal_id, target_id)
     -- 【核心修改】根据游戏模式决定电网连接行为
     -- =======================================================
     local resource_cost_enabled = settings.startup["chuansongmen-enable-resource-cost"] and
-    settings.startup["chuansongmen-enable-resource-cost"].value or false
+        settings.startup["chuansongmen-enable-resource-cost"].value or false
 
     if not resource_cost_enabled then
         -- 无消耗模式：自动连接电网
@@ -412,7 +426,7 @@ function PortalManager.pair_portals(player_index, portal_id, target_id)
         my_data.power_connection_status = "connected"
         target_struct.power_connection_status = "connected"
         log_debug("传送门 DEBUG (remote pair_portals): 电网状态已更新 (power_connection_status = 'connected')。主控 ID: " ..
-        primary_struct.id)
+            primary_struct.id)
         player.print({ "messages.chuansongmen-pair-success", my_data.name, target_struct.name })
         player.print({ "messages.chuansongmen-power-auto-connected", primary_struct.name, primary_struct.id })
     else
@@ -439,7 +453,7 @@ end
 function PortalManager.unpair_portals(player_index, portal_id)
     local player = game.get_player(player_index)
     log_debug("传送门 DEBUG (remote): 收到 unpair_portals 调用, 玩家: " ..
-    (player and player.name or "未知") .. ", portal_id: " .. tostring(portal_id))
+        (player and player.name or "未知") .. ", portal_id: " .. tostring(portal_id))
     if not (player and portal_id) then return end
 
     local my_data = State.get_struct_by_id(portal_id)
@@ -476,7 +490,7 @@ function PortalManager.unpair_portals(player_index, portal_id)
                 PortalManager.disconnect_wires(primary_struct, secondary_struct)
                 power_partner.power_connected = false -- 确保对侧状态也更新
                 log_debug("传送门 DEBUG (remote unpair_portals): 对侧电网状态已更新 (power_connected=false)。ID: " .. power_partner
-                .id)
+                    .id)
             end
             my_data.power_connected = false
             player.print({ "messages.chuansongmen-power-disconnected" })
@@ -531,7 +545,7 @@ function PortalManager.update_portal_details(player_index, portal_id, new_name_w
         my_data.icon = { type = icon_type, name = icon_name }
         my_data.name = plain_name
         log_debug("传送门 PortalManager: 解析成功。新图标: {type='" ..
-        icon_type .. "', name='" .. icon_name .. "'}, 新名称: '" .. plain_name .. "'")
+            icon_type .. "', name='" .. icon_name .. "'}, 新名称: '" .. plain_name .. "'")
     else
         -- 情况 B: 字符串中不包含图标, e.g., "普通名称"
         -- 在这种情况下，我们只更新名称，保持图标不变。
@@ -596,7 +610,7 @@ function PortalManager.connect_portal_power(player, portal_id)
     -- 为无消耗模式提供一个不消耗碎片的“绿色通道”
     -- =======================================================
     local resource_cost_enabled = settings.startup["chuansongmen-enable-resource-cost"] and
-    settings.startup["chuansongmen-enable-resource-cost"].value or false
+        settings.startup["chuansongmen-enable-resource-cost"].value or false
     if not resource_cost_enabled then
         log_debug("传送门 DEBUG (connect_portal_power): [无消耗模式] 玩家手动重连电网。")
         my_data.power_connection_status = "connected"
@@ -638,10 +652,24 @@ function PortalManager.connect_portal_power(player, portal_id)
     end
 
     -- 智能消耗2个碎片
-    if count_A > 0 then inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 }) else inv_B.remove({ name =
-        "chuansongmen-spacetime-shard", count = 1 }) end
-    if count_B > 0 then inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 }) else inv_A.remove({ name =
-        "chuansongmen-spacetime-shard", count = 1 }) end
+    if count_A > 0 then
+        inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+    else
+        inv_B.remove({
+            name =
+            "chuansongmen-spacetime-shard",
+            count = 1
+        })
+    end
+    if count_B > 0 then
+        inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+    else
+        inv_A.remove({
+            name =
+            "chuansongmen-spacetime-shard",
+            count = 1
+        })
+    end
     log_debug("传送门 DEBUG (connect_portal_power): 成功消耗2个启动碎片。")
 
     -- 设置状态为“已连接”
@@ -673,7 +701,7 @@ function PortalManager.connect_portal_power(player, portal_id)
     PortalManager.connect_wires(primary_struct, secondary_struct)
 
     log_debug("传送门 DEBUG (connect_portal_power): 电网连接成功。ID: " ..
-    my_data.id .. " <-> " .. opposite.id .. "。服务到期tick: " .. expires_at)
+        my_data.id .. " <-> " .. opposite.id .. "。服务到期tick: " .. expires_at)
     player.print({ "messages.chuansongmen-power-connected-simple" })
 
     -- 刷新所有相关GUI

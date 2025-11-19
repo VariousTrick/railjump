@@ -35,7 +35,7 @@ end
 -- @param entry_portal_station_name string: 入口传送门内部火车站的完整名称
 function ScheduleHandler.transfer_schedule(old_train, new_train, entry_portal_station_name)
     log_schedule("DEBUG (transfer_schedule v2.0): 开始为新火车 (ID: " ..
-    new_train.id .. ") 转移时刻表，来源旧火车 (ID: " .. old_train.id .. ")。")
+        new_train.id .. ") 转移时刻表，来源旧火车 (ID: " .. old_train.id .. ")。")
 
     -- 1. 安全地获取旧火车的时刻表对象
     if not (old_train and old_train.valid and new_train and new_train.valid) then
@@ -55,7 +55,7 @@ function ScheduleHandler.transfer_schedule(old_train, new_train, entry_portal_st
     local interrupts = schedule_old.get_interrupts()
     local current_stop_index = schedule_old.current
     log_schedule("DEBUG (transfer_schedule): 获取完毕。站点数: " ..
-    #records_old .. ", 中断数: " .. #interrupts .. ", 当前目标索引: " .. current_stop_index)
+        #records_old .. ", 中断数: " .. #interrupts .. ", 当前目标索引: " .. current_stop_index)
 
     if #records_old == 0 then
         log_schedule("DEBUG (transfer_schedule): 旧时刻表为空，无需进一步处理。")
@@ -114,7 +114,7 @@ function ScheduleHandler.transfer_schedule(old_train, new_train, entry_portal_st
     -- 5. 【v2.0 核心改动】修正最终的目标索引
     local final_target_index = logical_next_stop_index - index_correction_offset
     log_schedule("DEBUG (transfer_schedule): 原始目标索引 " ..
-    logical_next_stop_index .. " - 偏移量 " .. index_correction_offset .. " = 最终目标索引 " .. final_target_index)
+        logical_next_stop_index .. " - 偏移量 " .. index_correction_offset .. " = 最终目标索引 " .. final_target_index)
 
     -- 确保修正后的索引不会越界
     if #final_records > 0 then
@@ -153,7 +153,7 @@ function ScheduleHandler.transfer_schedule(old_train, new_train, entry_portal_st
     if #final_records > 0 then
         schedule_new.go_to_station(final_target_index)
         log_schedule("!! 核心操作 (transfer_schedule): 已命令新火车前往最终目标站点索引 " ..
-        final_target_index .. " ('" .. (final_records[final_target_index].station or "轨道站") .. "')。时刻表转移完成！")
+            final_target_index .. " ('" .. (final_records[final_target_index].station or "轨道站") .. "')。时刻表转移完成！")
     end
 
     -- 8. 【重要】清空旧火车的时刻表，防止在销毁前产生意外行为

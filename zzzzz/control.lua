@@ -16,6 +16,8 @@ local function log_debug(message)
   end
 end
 
+
+
 --- 【新功能 新增】辅助函数，用于检查资源消耗模式是否启用
 local function is_resource_cost_enabled()
   -- 使用安全的短路求值方式读取设置
@@ -35,6 +37,8 @@ local TeleportHandler = require("scripts.teleport_handler")
 
 local CybersynCompat = require("scripts.cybersyn-compat")
 local ScheduleHandler = require("scripts.schedule-handler")
+
+local CybersynScheduler = require("scripts.cybersyn_scheduler")
 
 -- 【SE 兼容】获取 Space Exploration 的列车传送事件ID
 local SE_TELEPORT_STARTED_EVENT_ID = nil
@@ -139,6 +143,7 @@ local function initialize_all_modules()
     CybersynCompat.set_portal_accessor(Chuansongmen.find_portal_path_for_cybersyn)
   end
 end
+
 
 -- =================================================================================================
 -- 事件处理钩子
@@ -359,7 +364,7 @@ local function on_tick(event)
         portal_struct.power_grid_expires_at = 0
       end
     end
-    migration_needed = false         -- 关闭标志位，确保迁移只执行一次
+    migration_needed = false -- 关闭标志位，确保迁移只执行一次
     log_debug("传送门 DEBUG (on_tick): [延迟迁移] 数据迁移完成。")
   end
   -- =======================================================
@@ -416,7 +421,7 @@ local function on_tick(event)
   end
 
   -- 【“唤醒”逻辑升级版 v2.0】
-  if is_resource_cost_enabled() and (event.tick % 60 == 0) then                                     -- 每秒检查一次以保证性能
+  if is_resource_cost_enabled() and (event.tick % 60 == 0) then -- 每秒检查一次以保证性能
     for _, struct in pairs(MOD_DATA.portals) do
       -- 首先检查，当前传送门附近是否有正在等待的火车
       if struct.entity and struct.entity.valid and struct.watch_area then
@@ -478,7 +483,7 @@ local function on_tick(event)
         -- 我们只对主控传送门进行检查，避免对同一个网络重复操作
         if struct_A.is_power_primary then
           local struct_B = State.get_opposite_struct(struct_A)
-          if not struct_B then goto continue end                                                           -- 如果对侧无效，则跳过
+          if not struct_B then goto continue end -- 如果对侧无效，则跳过
 
           -- 逻辑分支一：处理已连接的电网 (续期或到期)
           if struct_A.power_connection_status == "connected" and game.tick > struct_A.power_grid_expires_at then
@@ -492,7 +497,7 @@ local function on_tick(event)
             if (count_A + count_B) < 2 then
               -- 【续期失败】-> 状态变为“系统断开”
               log_debug("传送门 DEBUG (on_tick): [电网维持] 续期失败，网络碎片总数 (" .. (count_A + count_B) .. ") 不足2个。断开电网...")
-              PortalManager.disconnect_portal_power(nil, struct_A.id)                                                             -- player为nil，状态会变为 "disconnected_by_system"
+              PortalManager.disconnect_portal_power(nil, struct_A.id) -- player为nil，状态会变为 "disconnected_by_system"
 
               local gps_tag_A = "[gps=" ..
                   struct_A.position.x .. "," .. struct_A.position.y .. "," .. struct_A.surface.name .. "]"
@@ -574,7 +579,7 @@ local function on_tick(event)
               struct_A.power_grid_expires_at = expires_at
               struct_B.power_grid_expires_at = expires_at
 
-              PortalManager.connect_wires(struct_A, struct_B)                                                                                       -- 直接调用内部函数连接电线
+              PortalManager.connect_wires(struct_A, struct_B) -- 直接调用内部函数连接电线
 
               local gps_tag_A = "[gps=" ..
                   struct_A.position.x .. "," .. struct_A.position.y .. "," .. struct_A.surface.name .. "]"
@@ -592,6 +597,12 @@ local function on_tick(event)
     end
   end
   -- =======================================================
+
+
+  -- 调用 Cybersyn 兼容调度器的每帧逻辑
+  if CybersynScheduler.on_tick then
+    CybersynScheduler.on_tick()
+  end
 
   process_player_teleport_requests()
 end
