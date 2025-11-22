@@ -1,3 +1,5 @@
+Earendel 的 Patreon页面链接 https://www.patreon.com/earendel请用以支持se模组。
+https://mods.factorio.com/mod/space-exploration 请尝试se模组
 # RailJump (轨道跃-迁站)
 
 This README is available in the following languages:
