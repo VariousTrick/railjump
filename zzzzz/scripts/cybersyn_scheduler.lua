@@ -35,7 +35,12 @@ local function find_portal_station(source_surface_index, target_surface_index, o
     local best_portal = nil; local min_dist = math.huge
 
     for _, portal in pairs(portals) do
-        if portal.surface.index == source_surface_index and portal.station and portal.station.valid and portal.paired_to_id then
+        -- [修复] 增加 and portal.cybersyn_connected 判断
+        if portal.surface.index == source_surface_index and
+            portal.station and
+            portal.station.valid and
+            portal.paired_to_id and
+            portal.cybersyn_connected then -- <=== 加上这一行
             local partner = nil
             for _, p in pairs(portals) do
                 if p.id == portal.paired_to_id then
@@ -185,10 +190,14 @@ local function process_train(train)
         remote.call("cybersyn", "write_global", s_manifest, "trains", train.id, "manifest")
         -- remote.call("cybersyn", "write_global", s_status, "trains", train.id, "status") <-- 这一行被删除了，禁止覆盖状态！
 
-        if c_train.p_station_id then remote.call("cybersyn", "write_global", c_train.p_station_id, "trains", train.id,
-                "p_station_id") end
-        if c_train.r_station_id then remote.call("cybersyn", "write_global", c_train.r_station_id, "trains", train.id,
-                "r_station_id") end
+        if c_train.p_station_id then
+            remote.call("cybersyn", "write_global", c_train.p_station_id, "trains", train.id,
+                "p_station_id")
+        end
+        if c_train.r_station_id then
+            remote.call("cybersyn", "write_global", c_train.r_station_id, "trains", train.id,
+                "r_station_id")
+        end
         if c_train.depot_id then remote.call("cybersyn", "write_global", c_train.depot_id, "trains", train.id, "depot_id") end
 
         log_debug("成功! 时刻表已修正，列车状态保持原始值，等待出发。")
