@@ -2,7 +2,7 @@
 Version: 1.1.0
 Date: 2025-11-27
   Features:
-    - 新增 Cybersyn + Space Exploration (SE) 混合环境下的深度兼容支持。
+    - 新增 Cybersyn + Space Exploration (SE) 混合环境下的深度兼容支持可以。
     - 实现了对 SE 太空电梯接口的“完美伪装”，现在 Cybersyn 的 SE 兼容脚本会将传送门识别为合法的跨地表连接，并自动接管调度逻辑。
   Bugfixes:
     - 修复了在 SE 环境下，Cybersyn 虽然能识别地表连接，却随机无法生成正确时刻表（表现为任务已创建但时刻表缺失传送步骤）的严重问题。
