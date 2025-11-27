@@ -51,18 +51,31 @@ function CybersynCompat.update_connection(portal_struct, opposite_struct, connec
   local success = false
   pcall(function()
     if connect then
-      -- 【完美伪装】构建一个包含必要属性的假对象，特别是 valid = true
-      local fake_station1 = {
-        valid = true,                          -- 关键！骗过 Cybersyn 的垃圾清理检查
-        name = "se-space-elevator-train-stop", -- 关键！骗过 SE 兼容脚本的类型检查
-        unit_number = station1.unit_number,
-        surface = { index = station1.surface.index, name = station1.surface.name, valid = true },
-        position = station1.position,
-        operable = true
-      }
-      -- 注意：我们只需要伪装其中一个站点，Cybersyn 就会认为这是一条电梯连接
+      -- 【关键逻辑修改】
+      -- Cybersyn 内部会强制按 unit_number 排序，ID 小的永远是 entity1。
+      -- 且 Cybersyn 的时刻表生成器只检查 entity1 的名字。
+      -- 所以，我们必须找出 ID 较小的那个车站，并对其进行伪装。
+      local min_station, max_station
+      if station1.unit_number < station2.unit_number then
+        min_station = station1
+        max_station = station2
+      else
+        min_station = station2
+        max_station = station1
+      end
 
-      -- 构造 SE 数据库所需的完整记录
+      -- 基于 ID 较小的车站构建完美伪装对象
+      local fake_station_for_check = {
+        valid = true,
+        name = "se-space-elevator-train-stop", -- 核心：骗过名字检查
+        unit_number = min_station.unit_number, -- 核心：ID 必须对应
+        surface = { index = min_station.surface.index, name = min_station.surface.name, valid = true },
+        position = min_station.position,
+        operable = true,
+        backer_name = min_station.backer_name -- 建议带上，虽然主要检查的是 name
+      }
+
+      -- 构造 SE 数据库所需的完整记录 (这部分逻辑保持不变，依赖 Surface Index)
       local ground_portal, orbit_portal
       if portal_struct.surface.index < opposite_struct.surface.index then
         ground_portal = portal_struct
@@ -72,20 +85,18 @@ function CybersynCompat.update_connection(portal_struct, opposite_struct, connec
         orbit_portal = portal_struct
       end
 
-      -- 我们必须传递真实的实体给 se_elevators，因为 SE 可能会用它们来检查位置
+      -- 写入 se_elevators (这部分保持不变，使用真实实体)
       local ground_end_data = {
-        elevator = ground_portal.entity,
+        elevator = ground_portal.entity, -- 注意：如果还遇到清理问题，这里可改为 ground_portal.station
         stop = ground_portal.station,
-        surface_id = ground_portal
-            .surface.index,
+        surface_id = ground_portal.surface.index,
         stop_id = ground_portal.station.unit_number,
         elevator_id = ground_portal.entity.unit_number
       }
       local orbit_end_data = {
-        elevator = orbit_portal.entity,
+        elevator = orbit_portal.entity, -- 同上
         stop = orbit_portal.station,
-        surface_id = orbit_portal
-            .surface.index,
+        surface_id = orbit_portal.surface.index,
         stop_id = orbit_portal.station.unit_number,
         elevator_id = orbit_portal.entity.unit_number
       }
@@ -99,19 +110,20 @@ function CybersynCompat.update_connection(portal_struct, opposite_struct, connec
         [orbit_portal.surface.index] = orbit_end_data
       }
 
-      -- 1. 写入 SE 电梯数据库 (使用真实实体，通过深度验证)
+      -- 1. 写入 SE 电梯数据库
       remote.call("cybersyn", "write_global", fake_elevator_data, "se_elevators", ground_portal.station.unit_number)
       remote.call("cybersyn", "write_global", fake_elevator_data, "se_elevators", orbit_portal.station.unit_number)
 
-      -- 2. 写入地表连接数据库 (使用伪装实体，通过名字检查)
+      -- 2. 写入地表连接数据库
+      -- 【关键修改】entity1 必须是我们伪造的那个 (因为它 ID 小)，entity2 放真实的另一个
       local connection_data = {
-        entity1 = (station1.unit_number < station2.unit_number) and fake_station1 or station2,
-        entity2 = (station1.unit_number < station2.unit_number) and station2 or fake_station1,
+        entity1 = fake_station_for_check,
+        entity2 = max_station,
       }
       local entity_pair_table = { [entity_pair_key] = connection_data }
       remote.call("cybersyn", "write_global", entity_pair_table, "connected_surfaces", surface_pair_key)
 
-      log_debug("传送门 Cybersyn 兼容: [完美伪装] 连接已建立。")
+      log_debug("传送门 Cybersyn 兼容: [智能排序伪装] 连接已建立。")
       success = true
     else
       remote.call("cybersyn", "write_global", nil, "se_elevators", station1.unit_number)
