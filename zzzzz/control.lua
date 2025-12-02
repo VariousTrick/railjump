@@ -40,6 +40,7 @@ local ScheduleHandler = require("scripts.schedule-handler")
 
 local CybersynScheduler = require("scripts.cybersyn_scheduler")
 
+local util = require("util")
 -- 【SE 兼容】获取 Space Exploration 的列车传送事件ID
 local SE_TELEPORT_STARTED_EVENT_ID = nil
 local SE_TELEPORT_FINISHED_EVENT_ID = nil
@@ -614,20 +615,100 @@ log_debug("传送门 DEBUG (control.lua): 注册事件监听器...")
 script.on_event(defines.events.on_gui_click, GUI.handle_click)
 script.on_event(defines.events.on_gui_checked_state_changed, GUI.handle_checked_state_changed)
 script.on_event(defines.events.on_gui_selection_state_changed, GUI.handle_signal_selection) -- 【新增】监听玩家从信号选择界面选择图标的事件
-script.on_event(defines.events.on_tick, on_tick)
-script.on_event(defines.events.on_built_entity, function(event)
-  if event.entity and event.entity.name == Constants.name_entity then
-    PortalManager.on_built(event.entity)
-  end
-end
-)
 
-script.on_event(defines.events.on_robot_built_entity, function(event)
-  if event.entity and event.entity.name == Constants.name_entity then
+script.on_event(defines.events.on_tick, on_tick)
+
+
+-- 定义一个辅助函数判断是否为飞船地表
+local function is_spaceship_surface(surface)
+  return string.find(surface.name, "spaceship") ~= nil
+end
+
+script.on_event(defines.events.on_entity_cloned, function(event)
+  local new_entity = event.destination
+  local old_entity = event.source
+
+  if not (new_entity and new_entity.valid) then return end
+
+  -- =======================================================
+  -- 分支 A: 唤醒 Cybersyn 控制器 (Combinator)
+  -- =======================================================
+  if new_entity.name == "cybersyn-combinator" then
+    -- 逻辑：只有当新地表是飞船时，才唤醒控制器
+    if is_spaceship_surface(new_entity.surface) then
+      -- 唤醒！
+      script.raise_event(defines.events.script_raised_built, { entity = new_entity })
+      -- 这里不需要 log，避免大量刷屏
+    end
+    return     -- 控制器处理完毕，退出
+  end
+
+  -- =======================================================
+  -- 分支 B: 传送门主体克隆
+  -- =======================================================
+  if new_entity.name == Constants.name_entity then
+    local old_id = old_entity.unit_number
+    local old_data = MOD_DATA.portals[old_id]
+
+    if not old_data then return end
+
+    log_debug("传送门 DEBUG (cloned): 传送门克隆 " .. old_id .. " -> " .. new_entity.unit_number)
+
+    -- 1. 深度拷贝数据
+    local new_data = util.table.deepcopy(old_data)
+
+    -- 2. 更新基础信息
+    new_data.unit_number = new_entity.unit_number
+    new_data.entity = new_entity
+    new_data.surface = new_entity.surface
+    new_data.position = new_entity.position
+
+    -- 3. 组件重连
+    PortalManager.reconnect_internal_entities(new_data)
+
+    -- 4. 保存新数据
+    MOD_DATA.portals[new_entity.unit_number] = new_data
+
+    -- 5. 物理线路重连 (对抗 SE 切线)
+    if new_data.paired_to_id and new_data.power_connection_status == "connected" then
+      local partner = State.get_struct_by_id(new_data.paired_to_id)
+      if partner then
+        local primary = new_data.is_power_primary and new_data or partner
+        local secondary = new_data.is_power_primary and partner or new_data
+        PortalManager.connect_wires(primary, secondary)
+      end
+    end
+
+    -- >>>>> [关键逻辑] Cybersyn 智能迁移 >>>>>
+    if new_data.cybersyn_connected then
+      local old_is_space = is_spaceship_surface(old_entity.surface)
+      local new_is_space = is_spaceship_surface(new_entity.surface)
+
+      -- 定义降落：旧的是飞船，新的不是
+      local is_landing = old_is_space and (not new_is_space)
+
+      -- 调用兼容模块处理
+      CybersynCompat.on_portal_cloned(old_data, new_data, is_landing)
+    end
+    -- <<<<< [逻辑结束] <<<<<
+
+    -- 6. 删除旧数据
+    MOD_DATA.portals[old_id] = nil
+  end
+end)
+
+
+local function handle_built_entity(event)
+  -- 增加对放置器名称的判断
+  if event.entity and (event.entity.name == Constants.name_entity or event.entity.name == "chuansongmen-placer-entity") then
     PortalManager.on_built(event.entity)
   end
 end
-)
+
+-- 修正后的注册方式：只需要传入事件ID和处理函数
+script.on_event(defines.events.on_built_entity, handle_built_entity)
+
+script.on_event(defines.events.on_robot_built_entity, handle_built_entity)
 
 local function on_portal_removed(entity)
   if not (entity and entity.valid) then return end

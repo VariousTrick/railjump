@@ -43,6 +43,19 @@ data:extend({
         place_result = "chuansongmen-entity",
         stack_size = 1,
     },
+
+    {
+        type = "item",
+        name = "chuansongmen-placer",
+        icon = "__zzzzz__/graphics/icons/portal.png",
+        icon_size = 64,
+        subgroup = "logistic-network",
+        order = "z[portal]-placer", -- 排在传送门后面
+        place_result = "chuansongmen-placer-entity",
+        stack_size = 1,
+        flags = {}, -- 隐藏，不显示在选单，只通过配方获得
+    },
+
     {
         type = "recipe",
         name = "chuansongmen",
@@ -60,6 +73,21 @@ data:extend({
             { type = "item", name = "chuansongmen", amount = 1 }
         },
     },
+
+    {
+        type = "recipe",
+        name = "chuansongmen-placer",
+        enabled = true,
+        energy_required = 60,
+        ingredients = {
+            { type = "item", name = "chuansongmen", amount = 50 }
+        },
+        results = {
+            { type = "item", name = "chuansongmen-placer", amount = 1 }
+        },
+        allow_as_intermediate = false
+    },
+
     {
         type = "assembling-machine",
         name = "chuansongmen-entity",
@@ -202,6 +230,117 @@ data:extend({
             },
             working_visualisations = {}
         },
+    },
+
+    {
+        type = "simple-entity-with-owner",
+        name = "chuansongmen-placer-entity",
+        icon = "__zzzzz__/graphics/icons/portal.png",
+        icon_size = 64,
+        flags = { "placeable-neutral", "placeable-player", "player-creation" },
+        minable = { mining_time = 0.5, result = "chuansongmen" }, -- 挖掉返还原物
+        max_health = 10000,
+
+        -- 物理属性：完全复刻本体
+        collision_box = create_centered_box(23.9, 24),
+        selection_box = create_centered_box(24, 24),
+        build_grid_size = 2,
+
+        picture = {
+            north = {
+                layers = {
+                    {
+                        filename = "__zzzzz__/graphics/entity/portal/portal-color-atlas.png",
+                        priority = "high",
+                        width = 832,
+                        height = 832,
+                        scale = 1,
+                        shift = { 0, 0 },
+                        x = 0,
+                        y = 0,
+                    },
+                    {
+                        filename = "__zzzzz__/graphics/entity/portal/portal-shadow.png",
+                        priority = "high",
+                        width = 2304,
+                        height = 1344,
+                        scale = 0.5,
+                        shift = { 6, 2.5 },
+                        draw_as_shadow = true
+                    }
+                }
+            },
+            east = {
+                layers = {
+                    {
+                        filename = "__zzzzz__/graphics/entity/portal/portal-color-atlas.png",
+                        priority = "high",
+                        width = 832,
+                        height = 832,
+                        scale = 1,
+                        shift = { 0, 0 },
+                        x = 832,
+                        y = 0,
+                    },
+                    {
+                        filename = "__zzzzz__/graphics/entity/portal/portal-shadow.png",
+                        priority = "high",
+                        width = 2304,
+                        height = 1344,
+                        scale = 0.5,
+                        shift = { 6, 2.5 },
+                        draw_as_shadow = true
+                    }
+                }
+            },
+            south = {
+                layers = {
+                    {
+                        filename = "__zzzzz__/graphics/entity/portal/portal-color-atlas.png",
+                        priority = "high",
+                        width = 832,
+                        height = 832,
+                        scale = 1,
+                        shift = { 0, 0 },
+                        x = 832,
+                        y = 832,
+                    },
+                    {
+                        filename = "__zzzzz__/graphics/entity/portal/portal-shadow.png",
+                        priority = "high",
+                        width = 2304,
+                        height = 1344,
+                        scale = 0.5,
+                        shift = { 6, 2.5 },
+                        draw_as_shadow = true
+                    }
+                }
+            },
+            west = {
+                layers = {
+                    {
+                        filename = "__zzzzz__/graphics/entity/portal/portal-color-atlas.png",
+                        priority = "high",
+                        width = 832,
+                        height = 832,
+                        scale = 1,
+                        shift = { 0, 0 },
+                        x = 0,
+                        y = 832,
+                    },
+                    {
+                        filename = "__zzzzz__/graphics/entity/portal/portal-shadow.png",
+                        priority = "high",
+                        width = 2304,
+                        height = 1344,
+                        scale = 0.5,
+                        shift = { 6, 2.5 },
+                        draw_as_shadow = true
+                    }
+                }
+            }
+        },
+        render_layer = "object",
     },
 
     -- ==================================

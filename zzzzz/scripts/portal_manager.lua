@@ -169,12 +169,176 @@ function PortalManager.setup_internal_entities(struct)
 end
 
 -- =================================================================================
+--- 【新增】克隆后的组件重连 (Re-binding)
+-- =================================================================================
+-- 在 SE 飞船移动或克隆事件中，新位置已经有了被引擎复制过来的内部实体
+-- 我们需要找到它们，并更新数据表中的引用
+function PortalManager.reconnect_internal_entities(struct)
+    log_debug("传送门 DEBUG (reconnect): 开始为 ID " .. struct.id .. " 重连内部组件...")
+
+    local se_direction
+    if struct.direction == defines.direction.east or struct.direction == defines.direction.south then
+        se_direction = defines.direction.east
+    else
+        se_direction = defines.direction.west
+    end
+
+    local surface = struct.surface
+    local center_pos = struct.position
+
+    -- 1. [关键] 强制清空旧引用，防止指向旧表面的实体
+    struct.sub_entities = {}
+    struct.station = nil
+    struct.electric_pole = nil
+    struct.power_switch = nil
+    struct.energy_interface_actual = nil
+    struct.collider = nil
+
+    -- 辅助函数：在指定偏移位置寻找特定名称的实体
+    local function find_and_bind(proto_name, offset, is_special)
+        local search_pos = Util.vectors_add(center_pos, offset)
+        -- [策略调整]
+        -- 1. 对于唯一存在的特殊组件 (Pole, Switch等)，给大一点的半径 (1.5) 以对抗浮点误差。
+        -- 2. 对于密集的铁轨，给 1.2 的半径。这足以覆盖 1格 的网格对齐偏移，但小于 2格 的铁轨间距，不会抓错。
+        local search_radius = 1.2
+        if is_special then
+            search_radius = 1.5
+        end
+
+        local candidates = surface.find_entities_filtered {
+            name = proto_name,
+            position = search_pos,
+            radius = search_radius
+        }
+
+        if candidates and #candidates > 0 then
+            -- [核心优化] 如果找到了多个（比如铁轨），取距离 search_pos 最近的那一个
+            -- 这能完美解决铁轨密集排列时的歧义问题
+            local found_ent = candidates[1]
+            if #candidates > 1 then
+                local min_dist = 1000
+                for _, cand in pairs(candidates) do
+                    local dist = math.sqrt((cand.position.x - search_pos.x) ^ 2 + (cand.position.y - search_pos.y) ^ 2)
+                    if dist < min_dist then
+                        min_dist = dist
+                        found_ent = cand
+                    end
+                end
+            end
+            if is_special == "station" then
+                struct.station = found_ent
+                log_debug("传送门 DEBUG (reconnect): √ 重新绑定车站")
+            elseif is_special == "pole" then
+                struct.electric_pole = found_ent
+                log_debug("传送门 DEBUG (reconnect): √ 重新绑定电线杆")
+            elseif is_special == "switch" then
+                struct.power_switch = found_ent
+                log_debug("传送门 DEBUG (reconnect): √ 重新绑定电源开关")
+            elseif is_special == "interface" then
+                struct.energy_interface_actual = found_ent
+                log_debug("传送门 DEBUG (reconnect): √ 重新绑定能源接口")
+            elseif is_special == "collider" then
+                struct.collider = found_ent
+                log_debug("传送门 DEBUG (reconnect): √ 重新绑定碰撞器")
+            else
+                -- 普通子实体，加入列表
+                table.insert(struct.sub_entities, found_ent)
+            end
+            return true
+        else
+            log_debug("传送门 警告 (reconnect): X 未能在新位置找到组件: " .. proto_name)
+            return false
+        end
+    end
+
+    -- 2. 遍历 Constants 定义，按位置找回所有组件
+    local entity_sets_to_process = { Constants.internals.shared, Constants.internals[se_direction] }
+
+    for _, entity_set in pairs(entity_sets_to_process) do
+        for proto_name, placements in pairs(entity_set) do
+            for _, placement in pairs(placements) do
+                local special_tag = nil
+                if proto_name == "chuansongmen-train-stop" then
+                    special_tag = "station"
+                elseif proto_name == "chuansongmen-energy-pole" then
+                    special_tag = "pole"
+                elseif proto_name == "chuansongmen-power-switch" then
+                    special_tag = "switch"
+                elseif proto_name == "chuansongmen-energy-interface" then
+                    special_tag = "interface"
+                end
+
+                find_and_bind(proto_name, placement.position, special_tag)
+            end
+        end
+    end
+
+    -- 3. 找回碰撞器 (单独处理)
+    local collider_pos_offset = Constants.space_elevator_collider_position[se_direction]
+    if collider_pos_offset then
+        find_and_bind("chuansongmen-collider", collider_pos_offset, "collider")
+    end
+
+    -- 4. 重置区域 (Watch Area / Output Area)
+    local watch_rect = Constants.watch_rect_by_dir[se_direction]
+    if watch_rect then
+        struct.watch_area = {
+            left_top = Util.vectors_add(center_pos, watch_rect.left_top),
+            right_bottom = Util.vectors_add(center_pos, watch_rect.right_bottom)
+        }
+    end
+    local output_rect = Constants.output_area[se_direction]
+    if output_rect then
+        struct.output_area = {
+            left_top = Util.vectors_add(center_pos, output_rect.left_top),
+            right_bottom = Util.vectors_add(center_pos, output_rect.right_bottom)
+        }
+    end
+
+    log_debug("传送门 DEBUG (reconnect): 重连流程结束。")
+end
+
+-- =================================================================================
 -- 生命周期 (建造/拆除)
 -- =================================================================================
 
 --- 当传送门实体被建造时调用
 -- 备注：从 control.lua 的 Chuansongmen.on_built 移植。
 function PortalManager.on_built(entity)
+    -- >>>>> [新增逻辑] 放置器替换 >>>>>
+    if entity.name == "chuansongmen-placer-entity" then
+        log_debug("传送门 DEBUG (on_built): 检测到放置器，正在转换为真身...")
+        local surface = entity.surface
+        local position = entity.position
+        local direction = entity.direction
+        local force = entity.force
+        local player_index = entity.last_user and entity.last_user.index
+
+        -- 销毁放置器
+        entity.destroy()
+
+        -- 生成真身
+        -- create_entity 不会自动触发事件，所以我们需要手动调用 on_built
+        local real_entity = surface.create_entity {
+            name = "chuansongmen-entity",
+            position = position,
+            direction = direction,
+            force = force,
+            player = player_index,
+            raise_built = false -- 关键：我们手动处理，不重复触发事件
+        }
+
+        if real_entity then
+            -- 递归调用，传入真身进行初始化
+            return PortalManager.on_built(real_entity)
+        else
+            log_debug("传送门 错误: 放置器转换失败，无法生成真身。")
+            return
+        end
+    end
+    -- <<<<< [新增结束] <<<<<
+
+
     local id = MOD_DATA.next_id
     log_debug("传送门 DEBUG (on_built): 传送门被建造。新传送门 ID: " ..
         id .. ", 实体 unit_number: " .. entity.unit_number .. ", 名称: " .. entity.name)

@@ -157,4 +157,55 @@ function CybersynCompat.on_portal_destroyed(portal_struct)
   end
 end
 
+--- 【新增】处理传送门克隆/移动时的 Cybersyn 注册迁移
+-- @param old_struct table: 旧数据
+-- @param new_struct table: 新数据
+-- @param is_landing boolean: 是否正在降落 (从太空变回地面)
+function CybersynCompat.on_portal_cloned(old_struct, new_struct, is_landing)
+  if not CybersynCompat.is_present then return end
+
+  -- 只处理原本就已经连接了 Cybersyn 的传送门
+  if not (old_struct and new_struct and old_struct.cybersyn_connected) then return end
+
+  -- 获取配对目标
+  local partner = State.get_struct_by_id(new_struct.paired_to_id)
+  if not partner then return end
+
+  -- 1. 无条件注销旧连接
+  CybersynCompat.update_connection(old_struct, partner, false, nil)
+
+  -- 2. 根据状态决定操作和通知
+  local is_takeoff = false -- 标记是否是起飞
+
+  if is_landing then
+    -- 场景：降落。隐身模式。
+    log_debug("传送门 Cybersyn 兼容: 飞船降落，物流接口进入隐身模式。")
+    new_struct.cybersyn_connected = true   -- 保持按钮开启状态
+  else
+    -- 场景：起飞 或 地面搬家。注册新 ID。
+    CybersynCompat.update_connection(new_struct, partner, true, nil)
+    log_debug("传送门 Cybersyn 兼容: 接口已迁移到新实体。")
+
+    -- 判断是否是起飞 (新地表是飞船)
+    if string.find(new_struct.surface.name, "spaceship") then
+      is_takeoff = true
+    end
+  end
+
+  -- 3. 发送玩家通知 (根据设置)
+  -- 只有在 "起飞" 或 "降落" 时才通知，普通搬家不打扰
+  if is_landing or is_takeoff then
+    for _, player in pairs(game.players) do
+      -- 检查玩家是否开启了通知设置
+      if settings.get_player_settings(player)["chuansongmen-show-cybersyn-notifications"].value then
+        if is_landing then
+          player.print({ "messages.chuansongmen-cybersyn-landing", new_struct.name })
+        elseif is_takeoff then
+          player.print({ "messages.chuansongmen-cybersyn-takeoff", new_struct.name })
+        end
+      end
+    end
+  end
+end
+
 return CybersynCompat

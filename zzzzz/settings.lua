@@ -52,5 +52,17 @@ data:extend({
     order = "b[power]-b[warnings]",    -- 排序
     localised_name = { "mod-setting-name.chuansongmen-show-power-warnings" },
     localised_description = { "mod-setting-description.chuansongmen-show-power-warnings" }
+  },
+  -- =======================================================
+  -- 【Cybersyn 兼容 - 新增设置】
+  -- =======================================================
+  {
+    type = "bool-setting",
+    name = "chuansongmen-show-cybersyn-notifications",
+    setting_type = "runtime-per-user", -- 玩家个人设置
+    default_value = true,              -- 默认开启
+    order = "z-b",                     -- 排在后面
+    localised_name = { "mod-setting-name.chuansongmen-show-cybersyn-notifications" },
+    localised_description = { "mod-setting-description.chuansongmen-show-cybersyn-notifications" }
   }
 })
