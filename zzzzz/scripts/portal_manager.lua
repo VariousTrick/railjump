@@ -387,6 +387,11 @@ function PortalManager.on_built(entity)
         local player = game.get_player(entity.last_user)
         if player then player.print({ "messages.chuansongmen-error-internal-creation-failed" }) end
         MOD_DATA.portals[entity.unit_number] = struct
+
+        -- [新增] 写入高速缓存
+        if not MOD_DATA.id_map then MOD_DATA.id_map = {} end
+        MOD_DATA.id_map[id] = entity.unit_number
+
         MOD_DATA.next_id = id + 1
         log_debug("传送门 警告 (on_built): 关键内部实体创建失败，但仍尝试注册传送门 ID " .. id)
         return
@@ -455,6 +460,12 @@ function PortalManager.on_mined(entity)
         end
         log_debug("传送门 DEBUG (on_mined): 内部实体销毁完毕。")
         MOD_DATA.portals[entity.unit_number] = nil
+
+        -- [新增] 清理高速缓存
+        if MOD_DATA.id_map and my_data.id then
+            MOD_DATA.id_map[my_data.id] = nil
+        end
+
         log_debug("传送门 DEBUG (on_mined): 传送门 ID " .. my_data.id .. " 的数据已从全局表移除。清理流程结束。")
     else
         log_debug("传送门 警告 (on_mined): 尝试清理 unit_number 为 " .. entity.unit_number .. " 的传送门，但在全局表中未找到其数据。")

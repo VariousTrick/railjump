@@ -214,38 +214,49 @@ function GUI.build_or_update(player, entity)
     local dropdown_flow = content_flow.add({ type = "flow", name = "dropdown_flow", direction = "vertical" })
     dropdown_flow.add({ type = "label", caption = { "gui.chuansongmen-select-target" } })
     local dropdown = dropdown_flow.add({ type = "drop-down", name = "target_dropdown" })
+
+    -- 【优化】构建下拉框的全新逻辑 (参考 RiftRail)
     local dropdown_items = {}
+    local dropdown_ids = {} -- [新增] 单独存储 ID，用于 tags
     local selected_idx_to_set = 0
+
     for _, data in pairs(MOD_DATA.portals) do
-        if data.id ~= my_data.id and data.entity and data.entity.valid and data.entity.direction == my_data.entity.direction then
-            -- 【修正】让下拉列表也能显示图标
+        -- 过滤逻辑：
+        -- 1. 不是自己
+        -- 2. 实体有效
+        -- 3. 方向一致
+        -- 4. [新增] 对方未配对，或者对方配对的就是我
+        if data.id ~= my_data.id and
+            data.entity and data.entity.valid and
+            data.entity.direction == my_data.entity.direction and
+            (not data.paired_to_id or data.paired_to_id == my_data.id)
+        then
+            -- 1. 准备富文本名称
             local icon_prefix = ""
             if data.icon and data.icon.type and data.icon.name then
                 icon_prefix = "[" .. data.icon.type .. "=" .. data.icon.name .. "] "
             end
+            local rich_name = icon_prefix .. data.name
 
-            local display_name = icon_prefix ..
-                data.name .. " (ID: " .. tostring(data.id) .. ") [" .. data.entity.surface.name .. "]"
+            -- 2. 构建本地化条目
+            local item_entry = { "gui.chuansongmen-dropdown-item-format", rich_name, tostring(data.id), data.entity
+                .surface.name }
 
-            if data.paired_to_id then
-                local partner = State.get_struct_by_id(data.paired_to_id)
-                -- 【修正】让配对伙伴也显示图标
-                local partner_icon_prefix = ""
-                if partner and partner.icon and partner.icon.type and partner.icon.name then
-                    partner_icon_prefix = "[" .. partner.icon.type .. "=" .. partner.icon.name .. "] "
-                end
-                display_name = display_name ..
-                    " [已配对: " .. (partner and (partner_icon_prefix .. partner.name) or "未知") .. "]"
-            end
+            table.insert(dropdown_items, item_entry)
+            table.insert(dropdown_ids, data.id) -- [新增] 将 ID 存入 tags 列表
 
-            table.insert(dropdown_items, display_name)
-
+            -- 3. 检查是否为当前选中项
             if my_data.paired_to_id and my_data.paired_to_id == data.id then
                 selected_idx_to_set = #dropdown_items
             end
         end
     end
+
     dropdown.items = dropdown_items
+
+    -- [新增] 将 ID 列表存入 tags，彻底和显示文本解耦
+    dropdown.tags = { ids = dropdown_ids }
+
     if selected_idx_to_set > 0 then dropdown.selected_index = selected_idx_to_set end
     dropdown.style.width = 300
     if #dropdown_items == 0 then dropdown.enabled = false end
@@ -384,11 +395,18 @@ function GUI.handle_click(event)
     if element_name == "pair_button" then
         local dropdown = frame.content_flow.dropdown_flow.target_dropdown
         if dropdown and dropdown.selected_index > 0 then
-            local target_id = tonumber(string.match(dropdown.items[dropdown.selected_index], "ID:%s*(%d+)"))
+            -- 【优化】从 tags 读取 ID，不再解析字符串
+            local target_id = nil
+            if dropdown.tags and dropdown.tags.ids then
+                target_id = dropdown.tags.ids[dropdown.selected_index]
+            end
+
             if target_id then
+                log_debug("GUI (配对): 选中索引 " .. dropdown.selected_index .. ", 从 tags 获取到目标 ID: " .. target_id)
                 remote.call("zchuansongmen", "pair_portals", player.index, my_data.id, target_id)
             else
                 player.print({ "messages.chuansongmen-error-no-target" })
+                log_debug("GUI (配对) 错误: 无法从 tags 获取 ID。")
             end
         else
             player.print({ "messages.chuansongmen-error-select-first" })
