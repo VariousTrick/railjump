@@ -53,7 +53,7 @@ data:extend({
         order = "z[portal]-placer", -- 排在传送门后面
         place_result = "chuansongmen-placer-entity",
         stack_size = 1,
-        flags = {}, -- 隐藏，不显示在选单，只通过配方获得
+        flags = {},  -- 隐藏，不显示在选单，只通过配方获得
     },
 
     {

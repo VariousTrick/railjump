@@ -190,67 +190,67 @@ end
 function TeleportHandler.finish_teleport(struct, opposite_struct)
     log_debug("传送门 DEBUG (finish_teleport): 火车传送完毕, 开始清理状态。源ID: " .. struct.id .. ", 目标ID: " .. opposite_struct.id)
 
-    -- =======================================================
-    -- 【Tug机制】销毁最后一个拖船
-    -- =======================================================
+    -- 1. 销毁最后的拖船
     if opposite_struct.tug and opposite_struct.tug.valid then
         opposite_struct.tug.destroy()
         opposite_struct.tug = nil
         log_debug("传送门 DEBUG (finish_teleport): [Tug] 最后的拖船已销毁。")
     end
-    -- =======================================================
 
     local final_train = opposite_struct.carriage_ahead and opposite_struct.carriage_ahead.train
     if final_train and final_train.valid then
         log_debug("传送门 DEBUG (finish_teleport): 找到最终火车 (ID: " .. final_train.id .. "), 开始恢复状态。")
+
+        -- 2. 【关键】在切换回自动模式之前，先拨动指针！
+        if opposite_struct.saved_schedule_index then
+            final_train.go_to_station(opposite_struct.saved_schedule_index)
+            log_debug("传送门 DEBUG (finish_teleport): [时刻表修复] 已将时刻表指针拨动到已保存的索引: " .. opposite_struct.saved_schedule_index)
+        end
+
+        -- 3. 恢复模式和速度
         final_train.manual_mode = opposite_struct.carriage_ahead_manual_mode
         local speed_direction = Chuansongmen.elevator_east_sign(opposite_struct) *
             Chuansongmen.carriage_east_sign(opposite_struct.carriage_ahead) *
             Chuansongmen.train_forward_sign(opposite_struct.carriage_ahead)
         final_train.speed = speed_direction * math.abs(opposite_struct.old_train_speed)
 
-        -- >>>> [开始修改] >>>>
-        -- 【核心注入】如果存在旧火车ID，执行 Cybersyn 数据迁移与补票
+        -- 4. Cybersyn 迁移
         if opposite_struct.old_train_id then
-            -- 传入之前保存的 snapshot
             handle_cybersyn_migration(opposite_struct.old_train_id, final_train, opposite_struct.cybersyn_snapshot)
-
-            -- 迁移完成后，立即清理快照，防止内存泄漏或污染
             opposite_struct.cybersyn_snapshot = nil
         end
-        -- <<<< [修改结束] <<<<
 
-        log_debug("传送门 DEBUG (finish_teleport): [最小干预策略] 不再调用go_to_station。")
         log_debug("传送门 DEBUG (finish_teleport): 状态恢复完毕。模式: " ..
             (final_train.manual_mode and "手动" or "自动") .. ", 速度: " .. final_train.speed)
     else
         log_debug("传送门 警告 (finish_teleport): 找不到有效的最终火车进行状态恢复。")
     end
+
+    -- 5. 清理所有状态变量
     struct.carriage_behind, struct.carriage_ahead, opposite_struct.carriage_behind, opposite_struct.carriage_ahead = nil,
         nil, nil, nil
-    log_debug("传送门 DEBUG (finish_teleport): 两侧传送门状态变量已重置。清理完毕。")
-    if SE_TELEPORT_FINISHED_EVENT_ID and final_train and final_train.valid and opposite_struct.old_train_id then
-        log_debug("传送门 SE 兼容: 正在为新火车 ID " ..
-            final_train.id .. " (旧火车ID: " .. opposite_struct.old_train_id .. ") 触发 on_train_teleport_finished 事件。")
-        script.raise_event(SE_TELEPORT_FINISHED_EVENT_ID, {
-            train = final_train,
-            old_train_id_1 = opposite_struct.old_train_id,
-            old_surface_index = struct.surface.index,
-            teleporter = opposite_struct.entity
-        })
+
+    if opposite_struct.old_train_id then
+        if SE_TELEPORT_FINISHED_EVENT_ID and final_train and final_train.valid then
+            script.raise_event(SE_TELEPORT_FINISHED_EVENT_ID, {
+                train = final_train,
+                old_train_id_1 = opposite_struct.old_train_id,
+                old_surface_index = struct.surface.index,
+                teleporter = opposite_struct.entity
+            })
+        end
         opposite_struct.old_train_id = nil
-        if opposite_struct.saved_schedule_index then
-            log_debug("传送门 DEBUG (finish_teleport): [时刻表] 清理出口传送门 (ID: " .. opposite_struct.id .. ") 的时刻表记忆。")
-            opposite_struct.saved_schedule_index = nil
-        end
-        if struct.saved_schedule_index then
-            struct.saved_schedule_index = nil
-        end
-    else
-        log_debug("传送门 SE 兼容: 警告 - 未能满足所有条件，on_train_teleport_finished 事件被跳过！")
     end
 
-    -- [新增] [优化] 关闭传送状态标记
+    -- 6. 清理保存的索引
+    if opposite_struct.saved_schedule_index then
+        opposite_struct.saved_schedule_index = nil
+    end
+    if struct.saved_schedule_index then
+        struct.saved_schedule_index = nil
+    end
+
+    -- 7. 关闭激活状态
     struct.is_teleporting = false
     log_debug("传送门 DEBUG (finish_teleport): ID " .. struct.id .. " 传送结束，进入休眠。")
 end
