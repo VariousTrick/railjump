@@ -11,7 +11,9 @@ MOD_DATA = {}
 local log_debug = function() end
 
 function State.set_logger(logger_func)
-    if logger_func then log_debug = logger_func end
+    if logger_func then
+        log_debug = logger_func
+    end
 end
 
 --- [只读] 初始化或加载全局数据引用
@@ -34,7 +36,7 @@ function State.ensure_storage()
         storage.chuansongmen_data = {
             portals = {},
             id_map = {},
-            next_id = 1
+            next_id = 1,
         }
         log_debug("传送门 State (init): 创建了新的 storage 数据表。")
     end
@@ -51,20 +53,28 @@ end
 
 --- 根据 ID 获取传送门结构数据 (带缓存)
 function State.get_struct_by_id(target_id)
-    if not target_id then return nil end
+    if not target_id then
+        return nil
+    end
 
     -- 1. 缓存读取
     if MOD_DATA.id_map and MOD_DATA.id_map[target_id] then
         local unit_number = MOD_DATA.id_map[target_id]
         local struct = MOD_DATA.portals[unit_number]
-        if struct then return struct else MOD_DATA.id_map[target_id] = nil end
+        if struct then
+            return struct
+        else
+            MOD_DATA.id_map[target_id] = nil
+        end
     end
 
     -- 2. 兜底查找并建立缓存
     if MOD_DATA.portals then
         for unit_number, struct in pairs(MOD_DATA.portals) do
             if struct.id == target_id then
-                if not MOD_DATA.id_map then MOD_DATA.id_map = {} end
+                if not MOD_DATA.id_map then
+                    MOD_DATA.id_map = {}
+                end
                 MOD_DATA.id_map[target_id] = unit_number
                 return struct
             end
@@ -83,7 +93,9 @@ end
 
 --- 获取对侧数据
 function State.get_opposite_struct(struct)
-    if not (struct and struct.paired_to_id) then return nil end
+    if not (struct and struct.paired_to_id) then
+        return nil
+    end
     local opposite_struct = State.get_struct_by_id(struct.paired_to_id)
     if opposite_struct and opposite_struct.entity and opposite_struct.entity.valid then
         return opposite_struct

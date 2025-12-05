@@ -28,12 +28,18 @@ function CybersynCompat.init(dependencies)
 end
 
 local function sorted_pair_key(a, b)
-  if a < b then return a .. "|" .. b else return b .. "|" .. a end
+  if a < b then
+    return a .. "|" .. b
+  else
+    return b .. "|" .. a
+  end
 end
 
 function CybersynCompat.update_connection(portal_struct, opposite_struct, connect, player)
   if not CybersynCompat.is_present then
-    if player then player.print({ "messages.chuansongmen-error-cybersyn-not-found" }) end
+    if player then
+      player.print({ "messages.chuansongmen-error-cybersyn-not-found" })
+    end
     return
   end
 
@@ -41,7 +47,9 @@ function CybersynCompat.update_connection(portal_struct, opposite_struct, connec
   local station2 = opposite_struct.station
 
   if not (station1 and station1.valid and station2 and station2.valid) then
-    if player then player.print({ "messages.chuansongmen-error-cybersyn-no-station" }) end
+    if player then
+      player.print({ "messages.chuansongmen-error-cybersyn-no-station" })
+    end
     return
   end
 
@@ -72,7 +80,7 @@ function CybersynCompat.update_connection(portal_struct, opposite_struct, connec
         surface = { index = min_station.surface.index, name = min_station.surface.name, valid = true },
         position = min_station.position,
         operable = true,
-        backer_name = min_station.backer_name -- 建议带上，虽然主要检查的是 name
+        backer_name = min_station.backer_name, -- 建议带上，虽然主要检查的是 name
       }
 
       -- 构造 SE 数据库所需的完整记录 (这部分逻辑保持不变，依赖 Surface Index)
@@ -91,14 +99,14 @@ function CybersynCompat.update_connection(portal_struct, opposite_struct, connec
         stop = ground_portal.station,
         surface_id = ground_portal.surface.index,
         stop_id = ground_portal.station.unit_number,
-        elevator_id = ground_portal.entity.unit_number
+        elevator_id = ground_portal.entity.unit_number,
       }
       local orbit_end_data = {
         elevator = orbit_portal.entity, -- 同上
         stop = orbit_portal.station,
         surface_id = orbit_portal.surface.index,
         stop_id = orbit_portal.station.unit_number,
-        elevator_id = orbit_portal.entity.unit_number
+        elevator_id = orbit_portal.entity.unit_number,
       }
 
       local fake_elevator_data = {
@@ -107,12 +115,24 @@ function CybersynCompat.update_connection(portal_struct, opposite_struct, connec
         cs_enabled = true,
         network_masks = nil,
         [ground_portal.surface.index] = ground_end_data,
-        [orbit_portal.surface.index] = orbit_end_data
+        [orbit_portal.surface.index] = orbit_end_data,
       }
 
       -- 1. 写入 SE 电梯数据库
-      remote.call("cybersyn", "write_global", fake_elevator_data, "se_elevators", ground_portal.station.unit_number)
-      remote.call("cybersyn", "write_global", fake_elevator_data, "se_elevators", orbit_portal.station.unit_number)
+      remote.call(
+        "cybersyn",
+        "write_global",
+        fake_elevator_data,
+        "se_elevators",
+        ground_portal.station.unit_number
+      )
+      remote.call(
+        "cybersyn",
+        "write_global",
+        fake_elevator_data,
+        "se_elevators",
+        orbit_portal.station.unit_number
+      )
 
       -- 2. 写入地表连接数据库
       -- 【关键修改】entity1 必须是我们伪造的那个 (因为它 ID 小)，entity2 放真实的另一个
@@ -120,16 +140,34 @@ function CybersynCompat.update_connection(portal_struct, opposite_struct, connec
         entity1 = fake_station_for_check,
         entity2 = max_station,
       }
-      local entity_pair_table = { [entity_pair_key] = connection_data }
-      remote.call("cybersyn", "write_global", entity_pair_table, "connected_surfaces", surface_pair_key)
+      -- [修改] 尝试使用 4 个参数进行定点插入
+      local result = remote.call(
+        "cybersyn",
+        "write_global",
+        connection_data,
+        "connected_surfaces",
+        surface_pair_key,
+        entity_pair_key
+      )
 
+      -- [修改] 如果表不存在，退回初始化写法
+      if not result then
+        remote.call(
+          "cybersyn",
+          "write_global",
+          { [entity_pair_key] = connection_data },
+          "connected_surfaces",
+          surface_pair_key
+        )
+      end
       log_debug("传送门 Cybersyn 兼容: [智能排序伪装] 连接已建立。")
       success = true
     else
+      -- [修改] 使用 4 个参数进行定点删除
+      remote.call("cybersyn", "write_global", nil, "connected_surfaces", surface_pair_key, entity_pair_key)
       remote.call("cybersyn", "write_global", nil, "se_elevators", station1.unit_number)
       remote.call("cybersyn", "write_global", nil, "se_elevators", station2.unit_number)
-      remote.call("cybersyn", "write_global", nil, "connected_surfaces", surface_pair_key)
-      log_debug("传送门 Cybersyn 兼容: 连接已断开并清理。")
+      log_debug("传送门 Cybersyn 兼容: 连接已断开并清理 (定点)。")
       success = true
     end
   end)
@@ -148,7 +186,9 @@ function CybersynCompat.update_connection(portal_struct, opposite_struct, connec
 end
 
 function CybersynCompat.on_portal_destroyed(portal_struct)
-  if not CybersynCompat.is_present then return end
+  if not CybersynCompat.is_present then
+    return
+  end
   if portal_struct and portal_struct.cybersyn_connected then
     local opposite_struct = State.get_opposite_struct(portal_struct)
     if opposite_struct and portal_struct.station.valid and opposite_struct.station.valid then
@@ -162,14 +202,20 @@ end
 -- @param new_struct table: 新数据
 -- @param is_landing boolean: 是否正在降落 (从太空变回地面)
 function CybersynCompat.on_portal_cloned(old_struct, new_struct, is_landing)
-  if not CybersynCompat.is_present then return end
+  if not CybersynCompat.is_present then
+    return
+  end
 
   -- 只处理原本就已经连接了 Cybersyn 的传送门
-  if not (old_struct and new_struct and old_struct.cybersyn_connected) then return end
+  if not (old_struct and new_struct and old_struct.cybersyn_connected) then
+    return
+  end
 
   -- 获取配对目标
   local partner = State.get_struct_by_id(new_struct.paired_to_id)
-  if not partner then return end
+  if not partner then
+    return
+  end
 
   -- 1. 无条件注销旧连接
   CybersynCompat.update_connection(old_struct, partner, false, nil)
@@ -180,7 +226,7 @@ function CybersynCompat.on_portal_cloned(old_struct, new_struct, is_landing)
   if is_landing then
     -- 场景：降落。隐身模式。
     log_debug("传送门 Cybersyn 兼容: 飞船降落，物流接口进入隐身模式。")
-    new_struct.cybersyn_connected = true   -- 保持按钮开启状态
+    new_struct.cybersyn_connected = true -- 保持按钮开启状态
   else
     -- 场景：起飞 或 地面搬家。注册新 ID。
     CybersynCompat.update_connection(new_struct, partner, true, nil)

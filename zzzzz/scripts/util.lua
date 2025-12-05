@@ -24,9 +24,13 @@ function Util.vectors_add(a, b)
 end
 
 function Util.position_in_rect(rect, pos)
-    if not (rect and rect.left_top and rect.right_bottom and pos) then return false end
-    return pos.x >= rect.left_top.x and pos.x <= rect.right_bottom.x and pos.y >= rect.left_top.y and
-        pos.y <= rect.right_bottom.y
+    if not (rect and rect.left_top and rect.right_bottom and pos) then
+        return false
+    end
+    return pos.x >= rect.left_top.x
+        and pos.x <= rect.right_bottom.x
+        and pos.y >= rect.left_top.y
+        and pos.y <= rect.right_bottom.y
 end
 
 function Util.get_rolling_stock_train_id(rolling_stock)
@@ -40,7 +44,9 @@ end
 -- 【SE兼容核心】底层内容转移函数 (借鉴自Space Exploration)
 ---------------------------------------------------------------------------
 function Util.se_move_inventory_items(source_inv, destination_inv)
-    if not (source_inv and source_inv.valid and destination_inv and destination_inv.valid) then return end
+    if not (source_inv and source_inv.valid and destination_inv and destination_inv.valid) then
+        return
+    end
     for i = 1, #source_inv do
         local stack = source_inv[i]
         if stack and stack.valid_for_read then
@@ -52,16 +58,18 @@ function Util.se_move_inventory_items(source_inv, destination_inv)
     if not source_inv.is_empty() then
         local entity = destination_inv.entity_owner
         if entity and entity.valid then
-            log_util("!! 警告 (se_move_inventory_items): 目标物品栏已满，部分物品将被丢弃在地上。")
+            log_util(
+                "!! 警告 (se_move_inventory_items): 目标物品栏已满，部分物品将被丢弃在地上。"
+            )
             for i = 1, #source_inv do
                 if source_inv[i].valid_for_read then
-                    entity.surface.spill_item_stack {
+                    entity.surface.spill_item_stack({
                         position = entity.position,
                         stack = source_inv[i],
                         enable_looted = true,
                         force = entity.force,
-                        allow_belts = false
-                    }
+                        allow_belts = false,
+                    })
                 end
             end
         end
@@ -78,8 +86,10 @@ function Util.se_transfer_burner(source_entity, destination_entity)
         if source_entity.burner.inventory then
             Util.se_move_inventory_items(source_entity.burner.inventory, destination_entity.burner.inventory)
             if source_entity.burner.burnt_result_inventory then
-                Util.se_move_inventory_items(source_entity.burner.burnt_result_inventory,
-                    destination_entity.burner.burnt_result_inventory)
+                Util.se_move_inventory_items(
+                    source_entity.burner.burnt_result_inventory,
+                    destination_entity.burner.burnt_result_inventory
+                )
             end
         end
     end
@@ -98,13 +108,20 @@ function Util.transfer_fluids(source_entity, destination_entity)
         log_util("DEBUG (transfer_fluids): 源实体中没有流体，无需转移。")
         return
     end
-    log_util("DEBUG (transfer_fluids): 找到 " .. source_entity.fluids_count .. " 个流体容器。正在逐一复制...")
+    log_util(
+        "DEBUG (transfer_fluids): 找到 " .. source_entity.fluids_count .. " 个流体容器。正在逐一复制..."
+    )
     for i = 1, source_entity.fluids_count do
         local success, err_msg = pcall(function()
             destination_entity.set_fluid(i, source_entity.get_fluid(i))
         end)
         if not success then
-            log_util("!! 严重兼容性错误 (transfer_fluids): 在复制第 " .. i .. " 个流体容器时失败！错误: " .. tostring(err_msg))
+            log_util(
+                "!! 严重兼容性错误 (transfer_fluids): 在复制第 "
+                .. i
+                .. " 个流体容器时失败！错误: "
+                .. tostring(err_msg)
+            )
         end
     end
     log_util("DEBUG (transfer_fluids): 流体转移流程结束。")
@@ -112,11 +129,13 @@ end
 
 function Util.transfer_equipment_grid(source_entity, destination_entity)
     log_util("DEBUG (transfer_equipment_grid): 开始转移装备网格...")
-    if not (source_entity and source_entity.valid and destination_entity and destination_entity.valid) then return end
+    if not (source_entity and source_entity.valid and destination_entity and destination_entity.valid) then
+        return
+    end
     if source_entity.grid and destination_entity.grid then
         for _, item_stack in pairs(source_entity.grid.equipment) do
             if item_stack then
-                destination_entity.grid.put { name = item_stack.name, position = item_stack.position }
+                destination_entity.grid.put({ name = item_stack.name, position = item_stack.position })
             end
         end
     end
@@ -125,10 +144,14 @@ end
 
 function Util.transfer_all_inventories(source_entity, destination_entity, move_items)
     log_util("DEBUG (transfer_all_inventories): 开始转移所有物品栏 (终极兼容模式)...")
-    if not (source_entity and source_entity.valid and destination_entity and destination_entity.valid) then return end
+    if not (source_entity and source_entity.valid and destination_entity and destination_entity.valid) then
+        return
+    end
 
     log_util("DEBUG (transfer_all_inventories): 正在尝试 [主方案] 'get_inventories'...")
-    local success, inventories_or_error = pcall(function() return source_entity.get_inventories(source_entity) end)
+    local success, inventories_or_error = pcall(function()
+        return source_entity.get_inventories(source_entity)
+    end)
     if success and inventories_or_error then
         log_util("DEBUG (transfer_all_inventories): [主方案成功] 'get_inventories' 调用成功。")
         local source_inventories = inventories_or_error
@@ -143,8 +166,11 @@ function Util.transfer_all_inventories(source_entity, destination_entity, move_i
             return
         end
     else
-        log_util("!! 警告 (transfer_all_inventories): [主方案失败] 'get_inventories' 调用失败。错误: " ..
-            tostring(inventories_or_error) .. " 将启动 [SE后备方案]...")
+        log_util(
+            "!! 警告 (transfer_all_inventories): [主方案失败] 'get_inventories' 调用失败。错误: "
+            .. tostring(inventories_or_error)
+            .. " 将启动 [SE后备方案]..."
+        )
     end
 
     log_util("DEBUG (transfer_all_inventories): [SE后备方案] 正在根据实体类型进行转移...")
@@ -167,27 +193,46 @@ function Util.transfer_all_inventories(source_entity, destination_entity, move_i
         if defines.inventory.fluid_wagon then
             local source_inv = source_entity.get_inventory(defines.inventory.fluid_wagon)
             if source_inv then
-                Util.se_move_inventory_items(source_inv, destination_entity.get_inventory(defines.inventory.fluid_wagon))
+                Util.se_move_inventory_items(
+                    source_inv,
+                    destination_entity.get_inventory(defines.inventory.fluid_wagon)
+                )
             end
         else
-            log_util("DEBUG (transfer_all_inventories): defines.inventory.fluid_wagon 不存在，跳过物品栏检查。")
+            log_util(
+                "DEBUG (transfer_all_inventories): defines.inventory.fluid_wagon 不存在，跳过物品栏检查。"
+            )
         end
     else
-        log_util("警告 (transfer_all_inventories): [SE后备方案] 未知的实体类型 '" .. entity_type .. "'，无法确定如何转移物品。")
+        log_util(
+            "警告 (transfer_all_inventories): [SE后备方案] 未知的实体类型 '"
+            .. entity_type
+            .. "'，无法确定如何转移物品。"
+        )
     end
     log_util("DEBUG (transfer_all_inventories): 后备方案执行完毕。")
 end
 
 function Util.transfer_inventory_filters(source_entity, destination_entity, inventory_index)
-    log_util("DEBUG (transfer_inventory_filters): 开始转移物品栏过滤器 (index: " .. tostring(inventory_index) .. ")...")
-    if not (source_entity and source_entity.valid and destination_entity and destination_entity.valid) then return end
+    log_util(
+        "DEBUG (transfer_inventory_filters): 开始转移物品栏过滤器 (index: "
+        .. tostring(inventory_index)
+        .. ")..."
+    )
+    if not (source_entity and source_entity.valid and destination_entity and destination_entity.valid) then
+        return
+    end
 
     local source_inv = source_entity.get_inventory(inventory_index)
     local dest_inv = destination_entity.get_inventory(inventory_index)
-    if not (source_inv and dest_inv) then return end
+    if not (source_inv and dest_inv) then
+        return
+    end
 
     if source_inv.is_filtered() then
-        log_util("DEBUG (transfer_inventory_filters): 检测到源物品栏已启用过滤，正在逐一复制格子...")
+        log_util(
+            "DEBUG (transfer_inventory_filters): 检测到源物品栏已启用过滤，正在逐一复制格子..."
+        )
         for i = 1, #dest_inv do
             local filter = source_inv.get_filter(i)
             if filter then
@@ -199,10 +244,14 @@ function Util.transfer_inventory_filters(source_entity, destination_entity, inve
     end
 
     log_util("DEBUG (transfer_inventory_filters): 正在安全地检查和转移过滤条...")
-    local pcall_success, pcall_result_or_error = pcall(function() return destination_entity.supports_inventory_bar() end)
+    local pcall_success, pcall_result_or_error = pcall(function()
+        return destination_entity.supports_inventory_bar()
+    end)
     if not pcall_success then
-        log_util("!! 严重兼容性错误 (transfer_inventory_filters): 尝试调用 'supports_inventory_bar' 时发生崩溃！错误信息: " ..
-            tostring(pcall_result_or_error))
+        log_util(
+            "!! 严重兼容性错误 (transfer_inventory_filters): 尝试调用 'supports_inventory_bar' 时发生崩溃！错误信息: "
+            .. tostring(pcall_result_or_error)
+        )
     elseif pcall_result_or_error == true then
         log_util("DEBUG (transfer_inventory_filters): 实体报告支持过滤条，正在尝试转移...")
         local transfer_success, transfer_error = pcall(function()
@@ -210,12 +259,17 @@ function Util.transfer_inventory_filters(source_entity, destination_entity, inve
             destination_entity.set_inventory_bar(inventory_index, bar)
         end)
         if not transfer_success then
-            log_util("!! 警告 (transfer_inventory_filters): 在转移过滤条时发生错误。错误信息: " .. tostring(transfer_error))
+            log_util(
+                "!! 警告 (transfer_inventory_filters): 在转移过滤条时发生错误。错误信息: "
+                .. tostring(transfer_error)
+            )
         else
             log_util("DEBUG (transfer_inventory_filters): 过滤条转移成功。")
         end
     else
-        log_util("DEBUG (transfer_inventory_filters): 实体报告不支持过滤条（或调用失败），安全跳过。")
+        log_util(
+            "DEBUG (transfer_inventory_filters): 实体报告不支持过滤条（或调用失败），安全跳过。"
+        )
     end
     log_util("DEBUG (transfer_inventory_filters): 物品栏过滤器转移结束。")
 end
@@ -230,7 +284,9 @@ function Util.consume_shared_resources(player, entry_portal, opposite_portal, it
     local opposite_inv = nil
 
     local function check_inventory(inventory, items)
-        if not inventory then return false end
+        if not inventory then
+            return false
+        end
         for _, item_stack in ipairs(items) do
             if inventory.get_item_count(item_stack.name) < item_stack.count then
                 return false
@@ -245,7 +301,11 @@ function Util.consume_shared_resources(player, entry_portal, opposite_portal, it
         for _, item_stack in ipairs(items_to_consume) do
             entry_inv.remove(item_stack)
         end
-        log_util("DEBUG (consume_shared_resources): 在入口传送门 (ID: " .. entry_portal.id .. ") 成功消耗本地资源。")
+        log_util(
+            "DEBUG (consume_shared_resources): 在入口传送门 (ID: "
+            .. entry_portal.id
+            .. ") 成功消耗本地资源。"
+        )
         return { success = true, consumed_at = entry_portal }
     end
 
@@ -259,12 +319,25 @@ function Util.consume_shared_resources(player, entry_portal, opposite_portal, it
         for _, item_stack in ipairs(items_to_consume) do
             opposite_inv.remove(item_stack)
         end
-        log_util("DEBUG (consume_shared_resources): 在对侧传送门 (ID: " .. opposite_portal.id .. ") 成功消耗远程资源。")
+        log_util(
+            "DEBUG (consume_shared_resources): 在对侧传送门 (ID: "
+            .. opposite_portal.id
+            .. ") 成功消耗远程资源。"
+        )
 
-        local gps_tag = "[gps=" ..
-            opposite_portal.position.x .. "," .. opposite_portal.position.y .. "," .. opposite_portal.surface.name .. "]"
-        local message = { "messages.chuansongmen-info-remote-consumption", entry_portal.name, gps_tag, opposite_portal
-            .name }
+        local gps_tag = "[gps="
+            .. opposite_portal.position.x
+            .. ","
+            .. opposite_portal.position.y
+            .. ","
+            .. opposite_portal.surface.name
+            .. "]"
+        local message = {
+            "messages.chuansongmen-info-remote-consumption",
+            entry_portal.name,
+            gps_tag,
+            opposite_portal.name,
+        }
 
         if player and player.valid then
             player.print(message)
@@ -277,9 +350,18 @@ function Util.consume_shared_resources(player, entry_portal, opposite_portal, it
 
     -- 3. 如果两边都失败
     ::fail::
-    log_util("!! 警告 (consume_shared_resources): 入口 (ID: " ..
-        entry_portal.id .. ") " .. (opposite_portal and ("和对侧 (ID: " .. opposite_portal.id .. ") ") or "") .. "均缺少资源。")
-    local failed_message = { "messages.chuansongmen-error-teleport-failed-resources", entry_portal.name, (opposite_portal and opposite_portal.name or "???") }
+    log_util(
+        "!! 警告 (consume_shared_resources): 入口 (ID: "
+        .. entry_portal.id
+        .. ") "
+        .. (opposite_portal and ("和对侧 (ID: " .. opposite_portal.id .. ") ") or "")
+        .. "均缺少资源。"
+    )
+    local failed_message = {
+        "messages.chuansongmen-error-teleport-failed-resources",
+        entry_portal.name,
+        (opposite_portal and opposite_portal.name or "???"),
+    }
     if player and player.valid then
         player.print(failed_message)
     else
@@ -297,7 +379,9 @@ function Util.signal_to_richtext(signal_id)
     -- 安全检查：确保输入是一个包含 type 和 name 的表
     if not (signal_id and signal_id.type and signal_id.name) then
         if DEBUG_LOGGING_ENABLED then -- 使用 control.lua 中定义的全局开关
-            log_debug("传送门 Util 警告 (signal_to_richtext): 接收到无效的 signal_id: " .. serpent.line(signal_id))
+            log_debug(
+                "传送门 Util 警告 (signal_to_richtext): 接收到无效的 signal_id: " .. serpent.line(signal_id)
+            )
         end
         return "" -- 返回空字符串以避免后续代码出错
     end

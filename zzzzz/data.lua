@@ -27,7 +27,7 @@ data:extend({
     -- 【请在这里加入这一段】
     {
         type = "recipe-category",
-        name = "chuansongmen-internal" -- 类别名称可以自定义
+        name = "chuansongmen-internal", -- 类别名称可以自定义
     },
 
     -- ==================================
@@ -53,13 +53,13 @@ data:extend({
         order = "z[portal]-placer", -- 排在传送门后面
         place_result = "chuansongmen-placer-entity",
         stack_size = 1,
-        flags = {},  -- 隐藏，不显示在选单，只通过配方获得
+        flags = {}, -- 隐藏，不显示在选单，只通过配方获得
     },
 
     {
         type = "recipe",
         name = "chuansongmen",
-        enabled = true,       -- 直接可用
+        enabled = true, -- 直接可用
         energy_required = 60, -- 设定一个较长的制作时间，符合其工程量
         ingredients = {
             { type = "item", name = "processing-unit",                  amount = 200 },
@@ -67,10 +67,10 @@ data:extend({
             { type = "item", name = "accumulator",                      amount = 10 },
             { type = "item", name = "concrete",                         amount = 500 },
             { type = "item", name = "chuansongmen-personal-stabilizer", amount = 2 },
-            { type = "item", name = "chuansongmen-exotic-matter",       amount = 5 }
+            { type = "item", name = "chuansongmen-exotic-matter",       amount = 5 },
         },
         results = {
-            { type = "item", name = "chuansongmen", amount = 1 }
+            { type = "item", name = "chuansongmen", amount = 1 },
         },
     },
 
@@ -80,12 +80,12 @@ data:extend({
         enabled = true,
         energy_required = 60,
         ingredients = {
-            { type = "item", name = "chuansongmen", amount = 50 }
+            { type = "item", name = "chuansongmen", amount = 50 },
         },
         results = {
-            { type = "item", name = "chuansongmen-placer", amount = 1 }
+            { type = "item", name = "chuansongmen-placer", amount = 1 },
         },
-        allow_as_intermediate = false
+        allow_as_intermediate = false,
     },
 
     {
@@ -96,7 +96,7 @@ data:extend({
 
         localised_description = { "entity-description.chuansongmen-entity-restriction" },
         flags = { "placeable-neutral", "placeable-player", "player-creation", "hide-alt-info" },
-        show_activity = false,    -- 【请在这里加入这一行】
+        show_activity = false, -- 【请在这里加入这一行】
         show_recipe_icon = false, -- 【!! 在这里添加这一行 !!】
         minable = { mining_time = 1, result = "chuansongmen" },
         max_health = 10000,
@@ -145,9 +145,9 @@ data:extend({
                             height = 1344,
                             scale = 0.5,
                             shift = { 6, 2.5 },
-                            draw_as_shadow = true
-                        }
-                    }
+                            draw_as_shadow = true,
+                        },
+                    },
                 },
                 -- 东 (East) - 曾经是 portal-right-red.png
                 east = {
@@ -171,9 +171,9 @@ data:extend({
                             height = 1344,
                             scale = 0.5,
                             shift = { 6, 2.5 },
-                            draw_as_shadow = true
-                        }
-                    }
+                            draw_as_shadow = true,
+                        },
+                    },
                 },
                 -- 南 (South) - 曾经是 portal-right-white.png
                 south = {
@@ -197,9 +197,9 @@ data:extend({
                             height = 1344,
                             scale = 0.5,
                             shift = { 6, 2.5 },
-                            draw_as_shadow = true
-                        }
-                    }
+                            draw_as_shadow = true,
+                        },
+                    },
                 },
                 -- 西 (West) - 曾经是 portal-left-green.png
                 west = {
@@ -223,12 +223,12 @@ data:extend({
                             height = 1344,
                             scale = 0.5,
                             shift = { 6, 2.5 },
-                            draw_as_shadow = true
-                        }
-                    }
+                            draw_as_shadow = true,
+                        },
+                    },
                 },
             },
-            working_visualisations = {}
+            working_visualisations = {},
         },
     },
 
@@ -266,9 +266,9 @@ data:extend({
                         height = 1344,
                         scale = 0.5,
                         shift = { 6, 2.5 },
-                        draw_as_shadow = true
-                    }
-                }
+                        draw_as_shadow = true,
+                    },
+                },
             },
             east = {
                 layers = {
@@ -289,9 +289,9 @@ data:extend({
                         height = 1344,
                         scale = 0.5,
                         shift = { 6, 2.5 },
-                        draw_as_shadow = true
-                    }
-                }
+                        draw_as_shadow = true,
+                    },
+                },
             },
             south = {
                 layers = {
@@ -312,9 +312,9 @@ data:extend({
                         height = 1344,
                         scale = 0.5,
                         shift = { 6, 2.5 },
-                        draw_as_shadow = true
-                    }
-                }
+                        draw_as_shadow = true,
+                    },
+                },
             },
             west = {
                 layers = {
@@ -335,10 +335,10 @@ data:extend({
                         height = 1344,
                         scale = 0.5,
                         shift = { 6, 2.5 },
-                        draw_as_shadow = true
-                    }
-                }
-            }
+                        draw_as_shadow = true,
+                    },
+                },
+            },
         },
         render_layer = "object",
     },
@@ -382,17 +382,17 @@ data:extend({
         type = "recipe",
         name = "chuansongmen-exotic-matter-production",
         category = "centrifuging", -- 只能在离心机中制作
-        enabled = true,            -- 直接可用
+        enabled = true,      -- 直接可用
         energy_required = 60,
         ingredients = {
             { type = "item", name = "speed-module",        amount = 1 },
             { type = "item", name = "efficiency-module",   amount = 1 },
             { type = "item", name = "productivity-module", amount = 1 },
-            { type = "item", name = "uranium-235",         amount = 1 }
+            { type = "item", name = "uranium-235",         amount = 1 },
             -- 【修改】移除了重油
         },
         results = {
-            { type = "item", name = "chuansongmen-exotic-matter", amount = 1 }
+            { type = "item", name = "chuansongmen-exotic-matter", amount = 1 },
         },
     },
 
@@ -401,14 +401,14 @@ data:extend({
         type = "recipe",
         name = "chuansongmen-shard-recycling",
         category = "crafting", -- 【修改】可以在组装机或玩家手中制作
-        enabled = true,        -- 直接可用
+        enabled = true,  -- 直接可用
         energy_required = 30,
         ingredients = {
-            { type = "item", name = "chuansongmen-spacetime-shard", amount = 10 }
+            { type = "item", name = "chuansongmen-spacetime-shard", amount = 10 },
             -- 【修改】移除了重油
         },
         results = {
-            { type = "item", name = "chuansongmen-exotic-matter", amount = 1 }
+            { type = "item", name = "chuansongmen-exotic-matter", amount = 1 },
         },
     },
 
@@ -417,14 +417,14 @@ data:extend({
         type = "recipe",
         name = "chuansongmen-shard-emergency-production",
         category = "centrifuging", -- 只能在离心机中制作
-        enabled = true,            -- 直接可用
+        enabled = true,      -- 直接可用
         energy_required = 10,
         ingredients = {
             { type = "item", name = "speed-module", amount = 1 },
-            { type = "item", name = "iron-plate",   amount = 20 }
+            { type = "item", name = "iron-plate",   amount = 20 },
         },
         results = {
-            { type = "item", name = "chuansongmen-spacetime-shard", amount = 5 }
+            { type = "item", name = "chuansongmen-spacetime-shard", amount = 5 },
         },
     },
 
@@ -433,17 +433,17 @@ data:extend({
         type = "recipe",
         name = "chuansongmen-personal-stabilizer-production",
         category = "crafting", -- 可以在组装机或玩家手中制作
-        enabled = true,        -- 直接可用
+        enabled = true,  -- 直接可用
         energy_required = 15,
         ingredients = {
             { type = "item", name = "processing-unit",              amount = 10 },
             { type = "item", name = "battery",                      amount = 20 },
             { type = "item", name = "steel-plate",                  amount = 10 },
             -- 【修改】增加了碎片作为原料
-            { type = "item", name = "chuansongmen-spacetime-shard", amount = 5 }
+            { type = "item", name = "chuansongmen-spacetime-shard", amount = 5 },
         },
         results = {
-            { type = "item", name = "chuansongmen-personal-stabilizer", amount = 1 }
+            { type = "item", name = "chuansongmen-personal-stabilizer", amount = 1 },
         },
     },
 
@@ -461,10 +461,10 @@ data:extend({
         ingredients = {
             { type = "item", name = "chuansongmen-exotic-matter",       amount = 1 },
             { type = "item", name = "chuansongmen-personal-stabilizer", amount = 1 },
-            { type = "item", name = "chuansongmen-spacetime-shard",     amount = 1 }
+            { type = "item", name = "chuansongmen-spacetime-shard",     amount = 1 },
         },
         results = {
-            { type = "item", name = "chuansongmen-spacetime-shard", amount = 3 }
+            { type = "item", name = "chuansongmen-spacetime-shard", amount = 3 },
         },
     },
 
@@ -541,10 +541,12 @@ data:extend({
         supply_area_distance = 12,
         maximum_wire_distance = 32,
         pictures = blank_sprite,
-        connection_points = { {
-            shadow = { copper = { 1, 0.1 }, green = { 1.2, -0.3 }, red = { 0.95, -0.2 } },
-            wire = { copper = { 0.1, -2.5 }, green = { 0.2, -2.8 }, red = { -0.25, -2.7 } }
-        } },
+        connection_points = {
+            {
+                shadow = { copper = { 1, 0.1 }, green = { 1.2, -0.3 }, red = { 0.95, -0.2 } },
+                wire = { copper = { 0.1, -2.5 }, green = { 0.2, -2.8 }, red = { -0.25, -2.7 } },
+            },
+        },
     },
     {
         type = "electric-energy-interface",
@@ -560,7 +562,7 @@ data:extend({
             input_flow_limit = "600MW",
             output_flow_limit = "0GW",
             type = "electric",
-            usage_priority = "secondary-input"
+            usage_priority = "secondary-input",
         },
     },
     {
@@ -583,7 +585,11 @@ data:extend({
         selection_box = create_centered_box(4, 6),
         collision_mask = { layers = { ["train"] = true } },
         picture = blank_sprite,
-        dying_trigger_effect = { type = "create-entity", entity_name = "chuansongmen-train-collision-detector-explosion", trigger_created_entity = true },
+        dying_trigger_effect = {
+            type = "create-entity",
+            entity_name = "chuansongmen-train-collision-detector-explosion",
+            trigger_created_entity = true,
+        },
         max_health = 1,
         selectable_in_game = false,
     },
@@ -599,7 +605,7 @@ data:extend({
         energy_usage_per_tick = "1W",
         picture_off = blank_sprite,
         picture_on = blank_sprite,
-        light = { intensity = 1, size = 48, color = { r = 1, g = 0.95, b = 0.9 } }
+        light = { intensity = 1, size = 48, color = { r = 1, g = 0.95, b = 0.9 } },
     },
     {
         type = "simple-entity",
@@ -638,8 +644,9 @@ data:extend({
 -- 2. 读取模组设置 (从 data-final-fixes 移植)
 --    在 data 阶段，settings.startup 是只读的，这样读取是安全的。
 -- =================================================================================================
-local resource_cost_enabled = settings.startup["chuansongmen-enable-resource-cost"] and
-    settings.startup["chuansongmen-enable-resource-cost"].value or true
+local resource_cost_enabled = settings.startup["chuansongmen-enable-resource-cost"]
+    and settings.startup["chuansongmen-enable-resource-cost"].value
+    or true
 
 -- =================================================================================================
 -- 3. 根据模式修改原型 (从 data-final-fixes 移植)
@@ -679,7 +686,7 @@ else
 
     portal_entity.fixed_recipe = "chuansongmen-dummy-maintenance"
     data.raw.recipe["chuansongmen-dummy-maintenance"].enabled = true -- 确保虚拟配方可用
-    portal_entity.crafting_speed = 0.01                              -- 保持旧版无消耗模式的极低速度
+    portal_entity.crafting_speed = 0.01                           -- 保持旧版无消耗模式的极低速度
 
     -- 确保其他消耗模式的属性不存在
     portal_entity.ingredient_inventory_size = nil
@@ -714,8 +721,8 @@ table_merge(internal_power_switch, table.deepcopy(data.raw["power-switch"]["powe
 internal_power_switch.name = "chuansongmen-power-switch"
 internal_power_switch.icon = "__zzzzz__/graphics/icons/portal.png"
 internal_power_switch.icon_size = 64
-internal_power_switch.flags = { "hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable",
-    "not-on-map" }
+internal_power_switch.flags =
+{ "hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable", "not-on-map" }
 internal_power_switch.collision_mask = { layers = {} }
 internal_power_switch.selectable_in_game = false
 internal_power_switch.hidden = true
@@ -736,12 +743,19 @@ internal_train_stop.fast_replaceable_group = nil -- 移除快速替换组
 -- 确保 flags 包含 SE 使用的所有标志 (合并，不要覆盖)
 -- 您当前的 flags 已经很好了: {"hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable", "not-on-map"}
 -- SE 还加了 "not-in-kill-statistics"，可以考虑加入
-internal_train_stop.flags = { "hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable", "not-on-map",
-    "not-in-kill-statistics" }
+internal_train_stop.flags = {
+    "hide-alt-info",
+    "not-repairable",
+    "not-blueprintable",
+    "not-deconstructable",
+    "not-on-map",
+    "not-in-kill-statistics",
+}
 internal_train_stop.name = "chuansongmen-train-stop"
 internal_train_stop.icon = "__zzzzz__/graphics/icons/portal.png"
 internal_train_stop.icon_size = 64
-internal_train_stop.flags = { "hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable", "not-on-map" }
+internal_train_stop.flags =
+{ "hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable", "not-on-map" }
 internal_train_stop.hidden = true
 internal_train_stop.selectable_in_game = false
 internal_train_stop.animations = nil
@@ -754,8 +768,14 @@ internal_train_stop.rail_overlay_animations = nil
 local internal_rail_signal = data.raw["rail-signal"]["chuansongmen-rail-signal"]
 table_merge(internal_rail_signal, table.deepcopy(data.raw["rail-signal"]["rail-signal"]))
 internal_rail_signal.minable = nil
-internal_rail_signal.flags = { "hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable",
-    "not-on-map", "not-in-kill-statistics" }
+internal_rail_signal.flags = {
+    "hide-alt-info",
+    "not-repairable",
+    "not-blueprintable",
+    "not-deconstructable",
+    "not-on-map",
+    "not-in-kill-statistics",
+}
 internal_rail_signal.name = "chuansongmen-rail-signal"
 internal_rail_signal.icon = "__zzzzz__/graphics/icons/portal.png"
 internal_rail_signal.icon_size = 64
@@ -781,8 +801,7 @@ local blank_rail_layers = {
     metals = blank_sprite,
     backplates = blank_sprite,
     ties = blank_sprite,
-    stone_path =
-        blank_sprite
+    stone_path = blank_sprite,
 }
 
 local internal_straight_rail = data.raw["legacy-straight-rail"]["chuansongmen-legacy-straight-rail"]
@@ -793,23 +812,35 @@ internal_straight_rail.placeable_by = nil
 internal_straight_rail.next_upgrade = nil
 internal_straight_rail.fast_replaceable_group = nil
 -- 确保 flags 包含 SE 使用的所有标志
-internal_straight_rail.flags = { "hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable",
-    "not-on-map", "not-in-kill-statistics" }
+internal_straight_rail.flags = {
+    "hide-alt-info",
+    "not-repairable",
+    "not-blueprintable",
+    "not-deconstructable",
+    "not-on-map",
+    "not-in-kill-statistics",
+}
 internal_straight_rail.name = "chuansongmen-legacy-straight-rail"
 internal_straight_rail.icon = "__zzzzz__/graphics/icons/portal.png"
 internal_straight_rail.icon_size = 64
-internal_straight_rail.flags = { "hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable",
-    "not-on-map" }
+internal_straight_rail.flags =
+{ "hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable", "not-on-map" }
 internal_straight_rail.hidden = true
 internal_straight_rail.selectable_in_game = false
 
 -- 清理主要的轨道图形
-for _, key in pairs({ "straight_rail_horizontal", "straight_rail_vertical", "straight_rail_diagonal_left_top", "straight_rail_diagonal_right_top", "straight_rail_diagonal_right_bottom", "straight_rail_diagonal_left_bottom" }) do
+for _, key in pairs({
+    "straight_rail_horizontal",
+    "straight_rail_vertical",
+    "straight_rail_diagonal_left_top",
+    "straight_rail_diagonal_right_top",
+    "straight_rail_diagonal_right_bottom",
+    "straight_rail_diagonal_left_bottom",
+}) do
     if internal_straight_rail.pictures[key] then -- 检查以防万一
         internal_straight_rail.pictures[key] = blank_rail_layers
     end
 end
-
 
 -- 2. 修正“弯曲轨道”
 -- ==================
@@ -821,18 +852,33 @@ internal_curved_rail.placeable_by = nil
 internal_curved_rail.next_upgrade = nil
 internal_curved_rail.fast_replaceable_group = nil
 -- 确保 flags 包含 SE 使用的所有标志
-internal_curved_rail.flags = { "hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable",
-    "not-on-map", "not-in-kill-statistics" }
+internal_curved_rail.flags = {
+    "hide-alt-info",
+    "not-repairable",
+    "not-blueprintable",
+    "not-deconstructable",
+    "not-on-map",
+    "not-in-kill-statistics",
+}
 internal_curved_rail.name = "chuansongmen-legacy-curved-rail"
 internal_curved_rail.icon = "__zzzzz__/graphics/icons/portal.png"
 internal_curved_rail.icon_size = 64
-internal_curved_rail.flags = { "hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable",
-    "not-on-map" }
+internal_curved_rail.flags =
+{ "hide-alt-info", "not-repairable", "not-blueprintable", "not-deconstructable", "not-on-map" }
 internal_curved_rail.hidden = true
 internal_curved_rail.selectable_in_game = false
 
 -- 清理主要的轨道图形
-for _, key in pairs({ "curved_rail_vertical_left_top", "curved_rail_vertical_right_top", "curved_rail_vertical_right_bottom", "curved_rail_vertical_left_bottom", "curved_rail_horizontal_left_top", "curoved_rail_horizontal_right_top", "curved_rail_horizontal_right_bottom", "curved_rail_horizontal_left_bottom" }) do
+for _, key in pairs({
+    "curved_rail_vertical_left_top",
+    "curved_rail_vertical_right_top",
+    "curved_rail_vertical_right_bottom",
+    "curved_rail_vertical_left_bottom",
+    "curved_rail_horizontal_left_top",
+    "curoved_rail_horizontal_right_top",
+    "curved_rail_horizontal_right_bottom",
+    "curved_rail_horizontal_left_bottom",
+}) do
     if internal_curved_rail.pictures[key] then -- 检查以防万一
         internal_curved_rail.pictures[key] = blank_rail_layers
     end

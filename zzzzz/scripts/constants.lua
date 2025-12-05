@@ -34,7 +34,7 @@ Constants.deconstruction_check_radius = 12                                      
 -- 内部碰撞器的相对位置 (根据朝向)
 Constants.space_elevator_collider_position = {
     [defines.direction.east] = { x = -3, y = -3.5 },
-    [defines.direction.west] = { x = 3, y = -3.5 }
+    [defines.direction.west] = { x = 3, y = -3.5 },
 }
 
 -- 火车检测区域 (相对传送门中心)
@@ -132,7 +132,7 @@ Constants.internals = {
             { position = { x = -11.5, y = 1.5 }, direction = defines.direction.east },
             { position = { x = 11.5, y = 1.5 },  direction = defines.direction.east },
         },
-    }
+    },
 }
 
 -- 在文件末尾，将包含所有常量的大表导出，以便其他文件可以引用

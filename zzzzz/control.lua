@@ -5,24 +5,27 @@
 log("传送门 DEBUG (control.lua): 开始加载 control.lua ...")
 
 -- 【v94 新增】调试日志开关
-local DEBUG_LOGGING_ENABLED = false -- 设置为 true 开启日志，设置为 false 关闭日志
+-- local DEBUG_LOGGING_ENABLED = false -- 设置为 true 开启日志，设置为 false 关闭日志
 
 -- 【数据迁移】全局标志位，用于触发延迟迁移
 local migration_needed = false
 
 local function log_debug(message)
-  if DEBUG_LOGGING_ENABLED then
+  -- 动态检查设置
+  if settings.global["chuansongmen-debug-mode"].value then
     log(message)
+    if game then
+      game.print(message)
+    end -- 同时输出到聊天框，方便调试
   end
 end
-
-
 
 --- 【新功能 新增】辅助函数，用于检查资源消耗模式是否启用
 local function is_resource_cost_enabled()
   -- 使用安全的短路求值方式读取设置
-  return settings.startup["chuansongmen-enable-resource-cost"] and
-      settings.startup["chuansongmen-enable-resource-cost"].value or false
+  return settings.startup["chuansongmen-enable-resource-cost"]
+      and settings.startup["chuansongmen-enable-resource-cost"].value
+      or false
 end
 
 -- =================================================================================
@@ -84,15 +87,21 @@ end
 
 function Chuansongmen.train_forward_sign(carriage_a)
   local sign = 1
-  if #carriage_a.train.carriages == 1 then return sign end
+  if #carriage_a.train.carriages == 1 then
+    return sign
+  end
   local carriage_b = carriage_a.get_connected_rolling_stock(defines.rail_direction.front)
   if not carriage_b then
     carriage_b = carriage_a.get_connected_rolling_stock(defines.rail_direction.back)
     sign = -sign
   end
   for _, carriage in pairs(carriage_a.train.carriages) do
-    if carriage == carriage_b then return sign end
-    if carriage == carriage_a then return -sign end
+    if carriage == carriage_b then
+      return sign
+    end
+    if carriage == carriage_a then
+      return -sign
+    end
   end
 end
 
@@ -102,13 +111,26 @@ end
 
 local function initialize_all_modules()
   State.initialize_globals()
-  if State.set_logger then State.set_logger(log_debug) end
-  if Util.set_debug_mode then Util.set_debug_mode(DEBUG_LOGGING_ENABLED) end
-  if ScheduleHandler.set_debug_mode then ScheduleHandler.set_debug_mode(DEBUG_LOGGING_ENABLED) end
-  if CybersynCompat.set_logger then CybersynCompat.set_logger(log_debug) end
+  if State.set_logger then
+    State.set_logger(log_debug)
+  end
+  -- [修改] 读取当前设置值
+  local debug_active = settings.global["chuansongmen-debug-mode"].value
+  if Util.set_debug_mode then
+    Util.set_debug_mode(debug_active)
+  end
+  if ScheduleHandler.set_debug_mode then
+    ScheduleHandler.set_debug_mode(debug_active)
+  end
+  if CybersynCompat.set_logger then
+    CybersynCompat.set_logger(log_debug)
+  end
 
-  local gui_deps = { State = State, Chuansongmen = Chuansongmen, CybersynCompat = CybersynCompat, log_debug = log_debug }
-  if GUI.init then GUI.init(gui_deps) end
+  local gui_deps =
+  { State = State, Chuansongmen = Chuansongmen, CybersynCompat = CybersynCompat, log_debug = log_debug }
+  if GUI.init then
+    GUI.init(gui_deps)
+  end
 
   local pm_deps = {
     State = State,
@@ -116,12 +138,15 @@ local function initialize_all_modules()
     Constants = Constants,
     Util = Util,
     Chuansongmen = Chuansongmen,
-    log_debug =
-        log_debug
+    log_debug = log_debug,
   }
-  if PortalManager.init then PortalManager.init(pm_deps) end
+  if PortalManager.init then
+    PortalManager.init(pm_deps)
+  end
 
-  if PortalManager.init then PortalManager.init(pm_deps) end
+  if PortalManager.init then
+    PortalManager.init(pm_deps)
+  end
 
   -- 【关键】为 TeleportHandler 模块注入所有它需要的依赖
   local th_deps = {
@@ -132,9 +157,11 @@ local function initialize_all_modules()
     Chuansongmen = Chuansongmen,
     log_debug = log_debug,
     SE_TELEPORT_STARTED_EVENT_ID = SE_TELEPORT_STARTED_EVENT_ID,
-    SE_TELEPORT_FINISHED_EVENT_ID = SE_TELEPORT_FINISHED_EVENT_ID
+    SE_TELEPORT_FINISHED_EVENT_ID = SE_TELEPORT_FINISHED_EVENT_ID,
   }
-  if TeleportHandler.init then TeleportHandler.init(th_deps) end
+  if TeleportHandler.init then
+    TeleportHandler.init(th_deps)
+  end
 
   -- 【修复】将 State 模块注入到 CybersynCompat 中
   local cybersyn_deps = { State = State }
@@ -144,7 +171,6 @@ local function initialize_all_modules()
     CybersynCompat.set_portal_accessor(Chuansongmen.find_portal_path_for_cybersyn)
   end
 end
-
 
 -- =================================================================================================
 -- 事件处理钩子
@@ -191,13 +217,21 @@ script.on_configuration_changed(function(event)
   -- 通过检查 event.mod_changes，确保迁移只在Mod更新后第一次加载时运行
   local old_version = event.mod_changes and event.mod_changes["zzzzz"] and event.mod_changes["zzzzz"].old_version
   if old_version then
-    log_debug("传送门 DEBUG (on_config_changed): 检测到Mod更新，从版本 " .. old_version .. " 开始迁移数据...")
+    log_debug(
+      "传送门 DEBUG (on_config_changed): 检测到Mod更新，从版本 "
+      .. old_version
+      .. " 开始迁移数据..."
+    )
 
     -- (这里是我们从 on_load 剪切过来的脚本)
     for _, portal_struct in pairs(MOD_DATA.portals) do
       -- 迁移 power_connection_status 状态
       if portal_struct.power_connection_status == nil then
-        log_debug("传送门 DEBUG (on_config_changed): 正在为传送门 " .. portal_struct.id .. " 迁移电网状态...")
+        log_debug(
+          "传送门 DEBUG (on_config_changed): 正在为传送门 "
+          .. portal_struct.id
+          .. " 迁移电网状态..."
+        )
         if portal_struct.power_connected == true then
           portal_struct.power_connection_status = "connected"
         else
@@ -208,7 +242,11 @@ script.on_configuration_changed(function(event)
 
       -- 迁移 power_grid_expires_at 计时器
       if portal_struct.power_grid_expires_at == nil then
-        log_debug("传送门 DEBUG (on_config_changed): 正在为传送门 " .. portal_struct.id .. " 初始化电网计时器...")
+        log_debug(
+          "传送门 DEBUG (on_config_changed): 正在为传送门 "
+          .. portal_struct.id
+          .. " 初始化电网计时器..."
+        )
         portal_struct.power_grid_expires_at = 0
       end
     end
@@ -220,14 +258,23 @@ script.on_configuration_changed(function(event)
 end)
 
 function Chuansongmen.find_portal_path_for_cybersyn(source_surface_index, destination_surface_index)
-  log_debug("传送门 DEBUG (find_portal_path_for_cybersyn): 正在查找从地表 " ..
-    source_surface_index .. " 到 " .. destination_surface_index .. " 的传送门路径...")
+  log_debug(
+    "传送门 DEBUG (find_portal_path_for_cybersyn): 正在查找从地表 "
+    .. source_surface_index
+    .. " 到 "
+    .. destination_surface_index
+    .. " 的传送门路径..."
+  )
   for _, portal_A in pairs(MOD_DATA.portals) do
     if portal_A.surface.index == source_surface_index and portal_A.paired_to_id and portal_A.cybersyn_connected then
       local portal_B = State.get_opposite_struct(portal_A)
       if portal_B and portal_B.surface.index == destination_surface_index then
-        log_debug("传送门 DEBUG (find_portal_path_for_cybersyn): 找到路径！入口 ID: " ..
-          portal_A.id .. ", 出口 ID: " .. portal_B.id)
+        log_debug(
+          "传送门 DEBUG (find_portal_path_for_cybersyn): 找到路径！入口 ID: "
+          .. portal_A.id
+          .. ", 出口 ID: "
+          .. portal_B.id
+        )
         return portal_A, portal_B
       end
     end
@@ -237,20 +284,38 @@ function Chuansongmen.find_portal_path_for_cybersyn(source_surface_index, destin
 end
 
 function Chuansongmen.are_directions_compatible(direction1, direction2)
-  if direction1 == direction2 then return true, "SAME" end
+  if direction1 == direction2 then
+    return true, "SAME"
+  end
   return false, "MISMATCH"
 end
 
 function Chuansongmen.force_clear_trains_in_area(struct)
-  if not (struct and struct.entity and struct.entity.valid) then return end
-  log_debug("传送门 DEBUG (force_clear_trains_in_area): 开始为传送门 ID " .. struct.id .. " 强制清理区域内的火车...")
+  if not (struct and struct.entity and struct.entity.valid) then
+    return
+  end
+  log_debug(
+    "传送门 DEBUG (force_clear_trains_in_area): 开始为传送门 ID "
+    .. struct.id
+    .. " 强制清理区域内的火车..."
+  )
   local area = {
-    { struct.position.x - Constants.deconstruction_check_radius, struct.position.y - Constants.deconstruction_check_radius },
-    { struct.position.x + Constants.deconstruction_check_radius, struct.position.y + Constants.deconstruction_check_radius }
+    {
+      struct.position.x - Constants.deconstruction_check_radius,
+      struct.position.y - Constants.deconstruction_check_radius,
+    },
+    {
+      struct.position.x + Constants.deconstruction_check_radius,
+      struct.position.y + Constants.deconstruction_check_radius,
+    },
   }
-  local train_parts = struct.surface.find_entities_filtered { area = area, type = Constants.stock_types }
+  local train_parts = struct.surface.find_entities_filtered({ area = area, type = Constants.stock_types })
   if #train_parts > 0 then
-    log_debug("传送门 DEBUG (force_clear_trains_in_area): 找到 " .. #train_parts .. " 节火车部件，正在强制销毁...")
+    log_debug(
+      "传送门 DEBUG (force_clear_trains_in_area): 找到 "
+      .. #train_parts
+      .. " 节火车部件，正在强制销毁..."
+    )
     for _, part in pairs(train_parts) do
       if part and part.valid then
         part.destroy()
@@ -300,7 +365,13 @@ local function process_player_teleport_requests()
       local distance = calculate_distance(player.position, my_data.entity.position)
       local max_distance = 25
       if distance > max_distance then
-        log_debug("传送门 DEBUG (on_tick): [玩家传送] 玩家 " .. player.name .. " 因距离过远 (" .. distance .. ") 而传送失败。")
+        log_debug(
+          "传送门 DEBUG (on_tick): [玩家传送] 玩家 "
+          .. player.name
+          .. " 因距离过远 ("
+          .. distance
+          .. ") 而传送失败。"
+        )
         player.print({ "messages.chuansongmen-error-player-too-far" })
         can_teleport = false
       end
@@ -308,17 +379,21 @@ local function process_player_teleport_requests()
 
     -- 检查4：资源是否充足 (仅在有消耗模式)
     if can_teleport and is_resource_cost_enabled() then
-      log_debug("传送门 DEBUG (on_tick): [玩家传送] 正在为玩家 " .. player.name .. " 处理有消耗传送...")
+      log_debug(
+        "传送门 DEBUG (on_tick): [玩家传送] 正在为玩家 "
+        .. player.name
+        .. " 处理有消耗传送..."
+      )
       local items_to_consume = {
         { name = "chuansongmen-exotic-matter",       count = 1 },
-        { name = "chuansongmen-personal-stabilizer", count = 1 }
+        { name = "chuansongmen-personal-stabilizer", count = 1 },
       }
       local result = Util.consume_shared_resources(player, my_data, opposite, items_to_consume)
 
       if result.success then
         local producer_portal = result.consumed_at
-        local output_inventory = producer_portal.entity.get_inventory(defines.inventory
-          .assembling_machine_output)
+        local output_inventory =
+            producer_portal.entity.get_inventory(defines.inventory.assembling_machine_output)
         if output_inventory then
           output_inventory.insert({ name = "chuansongmen-spacetime-shard", count = 3 })
         end
@@ -337,7 +412,9 @@ local function process_player_teleport_requests()
     if can_teleport then
       local landing_pos = { x = opposite.entity.position.x, y = opposite.entity.position.y + 16 }
       player.teleport(landing_pos, opposite.entity.surface)
-      if player.opened then player.opened = nil end
+      if player.opened then
+        player.opened = nil
+      end
       log_debug("传送门 DEBUG (on_tick): [玩家传送] 玩家 " .. player.name .. " 传送成功。")
     end
   end
@@ -399,7 +476,10 @@ local function on_tick(event)
         TeleportHandler.hypertrain_manage_speed(struct)
 
         -- 2. 传送下一节车厢 (每 4 tick 执行)
-        if event.tick % Constants.teleport_next_tick_frequency == struct.unit_number % Constants.teleport_next_tick_frequency then
+        if
+            event.tick % Constants.teleport_next_tick_frequency
+            == struct.unit_number % Constants.teleport_next_tick_frequency
+        then
           local opposite = State.get_opposite_struct(struct) -- 现在这是 O(1) 操作
 
           if opposite and opposite.surface then
@@ -424,12 +504,19 @@ local function on_tick(event)
       if tick_mod_60 == struct.id % 60 then
         -- 1. 碰撞器重建 (原有逻辑)
         if not (struct.collider and struct.collider.valid) then
-          local se_direction = (struct.direction == defines.direction.east or struct.direction == defines.direction.south) and
-              defines.direction.east or defines.direction.west
+          local se_direction = (
+                struct.direction == defines.direction.east or struct.direction == defines.direction.south
+              )
+              and defines.direction.east
+              or defines.direction.west
           local collider_pos_offset = Constants.space_elevator_collider_position[se_direction]
           if collider_pos_offset then
             -- log_debug("传送门 DEBUG (on_tick): [维护] 重建碰撞器 ID " .. struct.id)
-            struct.collider = struct.surface.create_entity { name = "chuansongmen-collider", position = Util.vectors_add(struct.position, collider_pos_offset), force = "neutral" }
+            struct.collider = struct.surface.create_entity({
+              name = "chuansongmen-collider",
+              position = Util.vectors_add(struct.position, collider_pos_offset),
+              force = "neutral",
+            })
           end
         end
 
@@ -447,7 +534,10 @@ local function on_tick(event)
 
           if struct_B then
             -- 逻辑分支一：处理已连接的电网 (续期或到期)
-            if struct_A.power_connection_status == "connected" and game.tick > struct_A.power_grid_expires_at then
+            if
+                struct_A.power_connection_status == "connected"
+                and game.tick > struct_A.power_grid_expires_at
+            then
               -- log_debug("传送门 DEBUG (on_tick): [电网] 检查续期 ID " .. struct_A.id)
 
               local inv_A = struct_A.entity.get_inventory(defines.inventory.assembling_machine_input)
@@ -458,12 +548,24 @@ local function on_tick(event)
               if (count_A + count_B) < 2 then
                 -- 【续期失败】-> 断开
                 PortalManager.disconnect_portal_power(nil, struct_A.id) -- 自动断开
-                local gps_tag_A = "[gps=" ..
-                    struct_A.position.x .. "," .. struct_A.position.y .. "," .. struct_A.surface.name .. "]"
+                local gps_tag_A = "[gps="
+                    .. struct_A.position.x
+                    .. ","
+                    .. struct_A.position.y
+                    .. ","
+                    .. struct_A.surface.name
+                    .. "]"
                 for _, player in pairs(game.players) do
-                  if settings.get_player_settings(player)["chuansongmen-show-power-warnings"].value == true then
-                    player.print({ "messages.chuansongmen-warning-power-disconnected-shards", gps_tag_A, struct_A.name,
-                      struct_B.name })
+                  if
+                      settings.get_player_settings(player)["chuansongmen-show-power-warnings"].value
+                      == true
+                  then
+                    player.print({
+                      "messages.chuansongmen-warning-power-disconnected-shards",
+                      gps_tag_A,
+                      struct_A.name,
+                      struct_B.name,
+                    })
                   end
                 end
               else
@@ -521,21 +623,33 @@ local function on_tick(event)
 
                 PortalManager.connect_wires(struct_A, struct_B) -- 连接电线
 
-                local gps_tag_A = "[gps=" ..
-                    struct_A.position.x .. "," .. struct_A.position.y .. "," .. struct_A.surface.name .. "]"
+                local gps_tag_A = "[gps="
+                    .. struct_A.position.x
+                    .. ","
+                    .. struct_A.position.y
+                    .. ","
+                    .. struct_A.surface.name
+                    .. "]"
                 for _, player in pairs(game.players) do
-                  if settings.get_player_settings(player)["chuansongmen-show-power-warnings"].value == true then
-                    player.print({ "messages.chuansongmen-info-power-reconnected-auto", gps_tag_A, struct_A.name,
-                      struct_B.name })
+                  if
+                      settings.get_player_settings(player)["chuansongmen-show-power-warnings"].value
+                      == true
+                  then
+                    player.print({
+                      "messages.chuansongmen-info-power-reconnected-auto",
+                      gps_tag_A,
+                      struct_A.name,
+                      struct_B.name,
+                    })
                   end
                 end
               end
             end
           end
         end -- 结束 电网逻辑
-      end   -- 结束 低频任务
-    end     -- 结束 if entity.valid
-  end       -- 结束 主循环
+      end -- 结束 低频任务
+    end -- 结束 if entity.valid
+  end   -- 结束 主循环
 
   -- ======================================================================
   -- 【其他全局任务】
@@ -558,8 +672,24 @@ script.on_event(defines.events.on_gui_click, GUI.handle_click)
 script.on_event(defines.events.on_gui_checked_state_changed, GUI.handle_checked_state_changed)
 script.on_event(defines.events.on_gui_selection_state_changed, GUI.handle_signal_selection) -- 【新增】监听玩家从信号选择界面选择图标的事件
 
-script.on_event(defines.events.on_tick, on_tick)
+-- [新增] 监听设置变更，实时更新子模块的调试状态
+script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
+  if event.setting == "chuansongmen-debug-mode" then
+    local debug_active = settings.global["chuansongmen-debug-mode"].value
+    if Util.set_debug_mode then
+      Util.set_debug_mode(debug_active)
+    end
+    if ScheduleHandler.set_debug_mode then
+      ScheduleHandler.set_debug_mode(debug_active)
+    end
+    -- 重新注入 logger (如果需要)
+    if State.set_logger then
+      State.set_logger(log_debug)
+    end
+  end
+end)
 
+script.on_event(defines.events.on_tick, on_tick)
 
 -- 定义一个辅助函数判断是否为飞船地表
 local function is_spaceship_surface(surface)
@@ -570,7 +700,9 @@ script.on_event(defines.events.on_entity_cloned, function(event)
   local new_entity = event.destination
   local old_entity = event.source
 
-  if not (new_entity and new_entity.valid) then return end
+  if not (new_entity and new_entity.valid) then
+    return
+  end
 
   -- =======================================================
   -- 分支 A: 唤醒 Cybersyn 控制器 (Combinator)
@@ -592,7 +724,9 @@ script.on_event(defines.events.on_entity_cloned, function(event)
     local old_id = old_entity.unit_number
     local old_data = MOD_DATA.portals[old_id]
 
-    if not old_data then return end
+    if not old_data then
+      return
+    end
 
     log_debug("传送门 DEBUG (cloned): 传送门克隆 " .. old_id .. " -> " .. new_entity.unit_number)
 
@@ -627,7 +761,7 @@ script.on_event(defines.events.on_entity_cloned, function(event)
       local new_is_space = is_spaceship_surface(new_entity.surface)
 
       -- 定义降落：旧的是飞船，新的不是
-      local is_landing = old_is_space and (not new_is_space)
+      local is_landing = old_is_space and not new_is_space
 
       -- 调用兼容模块处理
       CybersynCompat.on_portal_cloned(old_data, new_data, is_landing)
@@ -639,10 +773,12 @@ script.on_event(defines.events.on_entity_cloned, function(event)
   end
 end)
 
-
 local function handle_built_entity(event)
   -- 增加对放置器名称的判断
-  if event.entity and (event.entity.name == Constants.name_entity or event.entity.name == "chuansongmen-placer-entity") then
+  if
+      event.entity
+      and (event.entity.name == Constants.name_entity or event.entity.name == "chuansongmen-placer-entity")
+  then
     PortalManager.on_built(event.entity)
   end
 end
@@ -653,7 +789,9 @@ script.on_event(defines.events.on_built_entity, handle_built_entity)
 script.on_event(defines.events.on_robot_built_entity, handle_built_entity)
 
 local function on_portal_removed(entity)
-  if not (entity and entity.valid) then return end
+  if not (entity and entity.valid) then
+    return
+  end
   local struct = State.get_struct(entity)
   if not struct then
     log_debug("传送门 警告 (on_portal_removed): 找不到传送门实体的数据。")
@@ -670,16 +808,14 @@ script.on_event({ defines.events.on_player_mined_entity, defines.events.on_robot
     log_debug("传送门 DEBUG (event): on_mined_entity 捕捉到传送门拆除。")
     on_portal_removed(event.entity)
   end
-end
-)
+end)
 
 script.on_event(defines.events.on_entity_died, function(event)
   if event and event.entity and event.entity.name == Constants.name_entity then
     log_debug("传送门 DEBUG (event): on_entity_died 捕捉到传送门摧毁。")
     on_portal_removed(event.entity)
   end
-end
-)
+end)
 
 script.on_event(defines.events.on_gui_opened, function(event)
   if event.gui_type == defines.gui_type.entity and event.entity and event.entity.name == Constants.name_entity then
@@ -690,12 +826,13 @@ script.on_event(defines.events.on_gui_opened, function(event)
       GUI.build_or_update(player, event.entity)
     end
   end
-end
-)
+end)
 
 script.on_event(defines.events.on_gui_closed, function(event)
   local player = game.get_player(event.player_index)
-  if not player or event.gui_type ~= defines.gui_type.entity then return end
+  if not player or event.gui_type ~= defines.gui_type.entity then
+    return
+  end
   local relative_gui = player.gui.relative
   if relative_gui.chuansongmen_main_frame and relative_gui.chuansongmen_main_frame.valid then
     log_debug("传送门 DEBUG (event): on_gui_closed 捕捉到实体 GUI 关闭，销毁传送门 GUI...")
@@ -705,22 +842,20 @@ script.on_event(defines.events.on_gui_closed, function(event)
   if anchor_frame and anchor_frame.valid then
     anchor_frame.destroy()
   end
-end
-)
+end)
 
 script.on_event(defines.events.on_trigger_created_entity, function(event)
   if event.entity and event.entity.name == Constants.name_train_collision_detector then
-    log_debug("传送门 DEBUG (event): on_trigger_created_entity 捕捉到碰撞检测实体 '" ..
-      Constants.name_train_collision_detector .. "' 创建！")
+    log_debug(
+      "传送门 DEBUG (event): on_trigger_created_entity 捕捉到碰撞检测实体 '"
+      .. Constants.name_train_collision_detector
+      .. "' 创建！"
+    )
     TeleportHandler.check_carriage_at_location(event.entity.surface, event.entity.position)
   end
-end
-)
+end)
 
 log_debug("传送门 DEBUG (control.lua): 事件监听器注册完毕。")
-
-
-
 
 -- =================================================================================
 -- 远程接口
@@ -741,21 +876,22 @@ remote.add_interface("zchuansongmen", {
   connect_portal_power = function(player_index, portal_id)
     local player = game.get_player(player_index)
     if player and portal_id then
-      log_debug("传送门 DEBUG (remote): 接收到 connect_portal_power 远程调用, 正在转发给 PortalManager...")
+      log_debug(
+        "传送门 DEBUG (remote): 接收到 connect_portal_power 远程调用, 正在转发给 PortalManager..."
+      )
       PortalManager.connect_portal_power(player, portal_id)
     end
   end,
   disconnect_portal_power = function(player_index, portal_id)
     local player = game.get_player(player_index)
     if player and portal_id then
-      log_debug("传送门 DEBUG (remote): 接收到 disconnect_portal_power 远程调用, 正在转发给 PortalManager...")
+      log_debug(
+        "传送门 DEBUG (remote): 接收到 disconnect_portal_power 远程调用, 正在转发给 PortalManager..."
+      )
       PortalManager.disconnect_portal_power(player, portal_id)
     end
-  end
-}
-)
-
-
+  end,
+})
 
 -- =================================================================================
 -- 调试工具
@@ -770,7 +906,7 @@ function serpent.dump(val, options)
     if type(v) == "string" then
       local esc_str = string.gsub(v, "\\", "\\\\")
       esc_str = string.gsub(esc_str, "\n", "\\n")
-      esc_str = string.gsub(esc_str, "\"", "\\\"")
+      esc_str = string.gsub(esc_str, '"', '\\"')
       esc_str = string.gsub(esc_str, "\r", "\\r")
       return '"' .. esc_str .. '"'
     elseif type(v) == "number" then
@@ -778,7 +914,9 @@ function serpent.dump(val, options)
     elseif type(v) == "boolean" then
       return v and "true" or "false"
     elseif type(v) == "table" then
-      if lookup[v] then return lookup[v] end
+      if lookup[v] then
+        return lookup[v]
+      end
       totallookup = totallookup + 1
       lookup[v] = "table" .. totallookup
       out[totallookup] = "{"
