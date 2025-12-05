@@ -127,8 +127,11 @@ local function process_train(train)
     end
 
     for _, record in pairs(train.schedule.records) do
-        if record.station and string.find(record.station, "chuansongmen") then
-            return
+        if record.station then
+            -- [互斥修改] 如果发现自己的站(chuansongmen) 或者 RiftRail的站(rift-rail)，都跳过
+            if string.find(record.station, "chuansongmen") or string.find(record.station, "rift%-rail") then
+                return
+            end
         end
     end
 
