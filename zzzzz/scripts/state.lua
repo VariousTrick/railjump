@@ -51,31 +51,38 @@ function State.ensure_storage()
     MOD_DATA = storage.chuansongmen_data
 end
 
---- 根据 ID 获取传送门结构数据 (带缓存)
+--- 根据 ID 获取传送门结构数据 (修正版：直接访问 storage)
 function State.get_struct_by_id(target_id)
     if not target_id then
         return nil
     end
 
+    -- 直接从 storage 读取，避免全局 MOD_DATA 引用问题
+    local data = storage.chuansongmen_data
+    if not data then
+        return nil
+    end
+
     -- 1. 缓存读取
-    if MOD_DATA.id_map and MOD_DATA.id_map[target_id] then
-        local unit_number = MOD_DATA.id_map[target_id]
-        local struct = MOD_DATA.portals[unit_number]
+    if data.id_map and data.id_map[target_id] then
+        local unit_number = data.id_map[target_id]
+        local struct = data.portals and data.portals[unit_number]
         if struct then
             return struct
         else
-            MOD_DATA.id_map[target_id] = nil
+            -- 清理无效缓存
+            data.id_map[target_id] = nil
         end
     end
 
     -- 2. 兜底查找并建立缓存
-    if MOD_DATA.portals then
-        for unit_number, struct in pairs(MOD_DATA.portals) do
+    if data.portals then
+        for unit_number, struct in pairs(data.portals) do
             if struct.id == target_id then
-                if not MOD_DATA.id_map then
-                    MOD_DATA.id_map = {}
+                if not data.id_map then
+                    data.id_map = {}
                 end
-                MOD_DATA.id_map[target_id] = unit_number
+                data.id_map[target_id] = unit_number
                 return struct
             end
         end
@@ -83,10 +90,12 @@ function State.get_struct_by_id(target_id)
     return nil
 end
 
---- 根据实体获取数据
+--- 根据实体获取数据 (修正版：直接访问 storage)
 function State.get_struct(entity)
-    if entity and entity.valid and entity.unit_number and MOD_DATA.portals then
-        return MOD_DATA.portals[entity.unit_number]
+    if entity and entity.valid and entity.unit_number then
+        if storage.chuansongmen_data and storage.chuansongmen_data.portals then
+            return storage.chuansongmen_data.portals[entity.unit_number]
+        end
     end
     return nil
 end

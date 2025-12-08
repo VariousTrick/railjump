@@ -389,4 +389,42 @@ function Util.signal_to_richtext(signal_id)
     return "[" .. signal_id.type .. "=" .. signal_id.name .. "]"
 end
 
+-- [新增] 旋转向量 (移植自 SE 0.7.36)
+function Util.rotate_vector(orientation, a)
+    if orientation == 0 then
+        return { x = a.x, y = a.y }
+    else
+        return {
+            x = -a.y * math.sin(orientation * 2 * math.pi) + a.x * math.sin((orientation + 0.25) * 2 * math.pi),
+            y = a.y * math.cos(orientation * 2 * math.pi) - a.x * math.cos((orientation + 0.25) * 2 * math.pi),
+        }
+    end
+end
+
+-- [新增] 旋转包围盒 (移植自 SE 0.7.36，用于修复断头 Bug)
+function Util.rotate_box(box, pivot)
+    if (not box.orientation) or box.orientation == 0 then
+        return box
+    end
+
+    local negative_pivot = { x = -pivot.x, y = -pivot.y }
+    local lt = Util.vectors_add(box.left_top, negative_pivot)
+    lt = Util.rotate_vector(box.orientation, lt)
+    lt = Util.vectors_add(lt, pivot)
+
+    local rb = Util.vectors_add(box.right_bottom, negative_pivot)
+    rb = Util.rotate_vector(box.orientation, rb)
+    rb = Util.vectors_add(rb, pivot)
+
+    -- 重新排序角点
+    if lt.x > rb.x then
+        lt.x, rb.x = rb.x, lt.x
+    end
+    if lt.y > rb.y then
+        lt.y, rb.y = rb.y, lt.y
+    end
+
+    return { left_top = lt, right_bottom = rb }
+end
+
 return Util

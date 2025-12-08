@@ -424,244 +424,222 @@ local function process_player_teleport_requests()
 end
 
 -- =================================================================================
--- 【重写】on_tick 主循环 (优化版)
+-- [最终修复版] on_tick 主循环
 -- =================================================================================
 local function on_tick(event)
-  -- 1. 【数据迁移 - 延迟执行】(保持原样)
+  -- 1. 数据迁移 (保持不变)
   if migration_needed then
     log_debug("传送门 DEBUG (on_tick): [延迟迁移] 开始执行数据迁移...")
     for _, portal_struct in pairs(MOD_DATA.portals) do
-      -- 迁移 power_connection_status 状态
       if portal_struct.power_connection_status == nil then
-        if portal_struct.power_connected == true then
-          portal_struct.power_connection_status = "connected"
-        else
-          portal_struct.power_connection_status = "disconnected"
-        end
+        portal_struct.power_connection_status = portal_struct.power_connected and "connected" or "disconnected"
         portal_struct.power_connected = nil
       end
-      -- 迁移 power_grid_expires_at 计时器
       if portal_struct.power_grid_expires_at == nil then
         portal_struct.power_grid_expires_at = 0
       end
     end
-    migration_needed = false -- 关闭标志位
+    migration_needed = false
     log_debug("传送门 DEBUG (on_tick): [延迟迁移] 数据迁移完成。")
   end
 
   -- ======================================================================
-  -- 【优化准备】
-  -- 1. 缓存每秒的模运算结果，用于负载均衡
-  -- 2. 缓存资源消耗开关状态
+  -- 2. 高频传送逻辑 (只遍历活跃列表，永远执行)
   -- ======================================================================
-  local tick_mod_60 = event.tick % 60
-  local cost_enabled = is_resource_cost_enabled()
+  -- [优化] 传送逻辑：只遍历活跃列表
+  if storage.active_teleporters then
+    local ids = {}
+    -- [修改] active_teleporters 现在只存 ID，所以 key 就是 unit_number
+    for unit_number, _ in pairs(storage.active_teleporters) do
+      table.insert(ids, unit_number)
+    end
+    table.sort(ids)
 
-  -- ======================================================================
-  -- 【单一主循环】遍历所有传送门
-  -- 优化策略：
-  -- 1. 合并了原来分散的4个循环，减少遍历开销。
-  -- 2. 引入 is_teleporting 标记，闲置时跳过高频计算。
-  -- 3. 利用 struct.id % 60 实现负载均衡，消除每秒卡顿。
-  -- ======================================================================
-  for _, struct in pairs(MOD_DATA.portals) do
-    -- 基础有效性检查
-    if struct.entity and struct.entity.valid then
-      -- =======================================================
-      -- 分支 A: 高频任务 (仅当 is_teleporting = true 时执行)
-      -- =======================================================
-      if struct.is_teleporting then
-        -- 1. 持续速度管理 (每 tick 执行，保持火车动力)
-        -- 原逻辑：TeleportHandler.hypertrain_manage_speed(struct)
+    for _, unit_number in ipairs(ids) do
+      -- [关键修复] 用 unit_number 从 storage 实时获取最新的 struct 数据
+      local struct = MOD_DATA.portals[unit_number]
+
+      if struct and struct.entity and struct.entity.valid and struct.is_teleporting then
+        -- [保持不变] 获取对侧实体
+        local opposite = State.get_opposite_struct(struct)
+
+        if not (opposite and opposite.entity and opposite.entity.valid) then
+          TeleportHandler.finish_teleport(struct, struct)
+          goto continue
+        end
+
+        -- 持续速度管理
         TeleportHandler.hypertrain_manage_speed(struct)
 
-        -- 2. 传送下一节车厢 (每 4 tick 执行)
+        -- 传送下一节车厢
         if
             event.tick % Constants.teleport_next_tick_frequency
-            == struct.unit_number % Constants.teleport_next_tick_frequency
+            == unit_number % Constants.teleport_next_tick_frequency
         then
-          local opposite = State.get_opposite_struct(struct) -- 现在这是 O(1) 操作
+          TeleportHandler.teleport_next(struct)
+        end
+      end
+      ::continue::
+    end
+  end
 
-          if opposite and opposite.surface then
-            if struct.carriage_behind and struct.carriage_behind.valid then
-              TeleportHandler.teleport_next(struct)
-            end
-          else
-            -- 异常处理：如果对侧失效，清理指针并关闭状态
-            if struct.carriage_behind or struct.carriage_ahead then
-              struct.carriage_behind, struct.carriage_ahead = nil, nil
-              struct.is_teleporting = false -- [优化] 关闭状态，进入休眠
-              log_debug("传送门 DEBUG: 对侧失效，强制关闭传送状态 ID: " .. struct.id)
+  -- ======================================================================
+  -- 3. 低频维护逻辑 (只在有消耗模式下执行)
+  -- ======================================================================
+  if is_resource_cost_enabled() then
+    local tick_mod_60 = event.tick % 60
+    for _, struct in pairs(MOD_DATA.portals) do
+      if struct.entity and struct.entity.valid then
+        if tick_mod_60 == struct.id % 60 then
+          -- 碰撞器重建
+          if not (struct.collider and struct.collider.valid) then
+            local se_direction = (
+                  struct.direction == defines.direction.east
+                  or struct.direction == defines.direction.south
+                )
+                and defines.direction.east
+                or defines.direction.west
+            local collider_pos_offset = Constants.space_elevator_collider_position[se_direction]
+            if collider_pos_offset then
+              struct.collider = struct.surface.create_entity({
+                name = "chuansongmen-collider",
+                position = Util.vectors_add(struct.position, collider_pos_offset),
+                force = "neutral",
+              })
             end
           end
-        end
-      end -- 结束 高频任务
 
-      -- =======================================================
-      -- 分支 B: 低频任务 (每秒执行一次，但分散到每一帧)
-      -- 利用 (tick % 60 == id % 60) 实现错峰执行
-      -- =======================================================
-      if tick_mod_60 == struct.id % 60 then
-        -- 1. 碰撞器重建 (原有逻辑)
-        if not (struct.collider and struct.collider.valid) then
-          local se_direction = (
-                struct.direction == defines.direction.east or struct.direction == defines.direction.south
-              )
-              and defines.direction.east
-              or defines.direction.west
-          local collider_pos_offset = Constants.space_elevator_collider_position[se_direction]
-          if collider_pos_offset then
-            -- log_debug("传送门 DEBUG (on_tick): [维护] 重建碰撞器 ID " .. struct.id)
-            struct.collider = struct.surface.create_entity({
-              name = "chuansongmen-collider",
-              position = Util.vectors_add(struct.position, collider_pos_offset),
-              force = "neutral",
-            })
+          -- 缺油唤醒
+          if struct.waiting_for_fuel then
+            TeleportHandler.handle_fuel_wakeup(struct)
           end
-        end
 
-        -- 2. [优化] 唤醒逻辑 (替代原来的 find_entities_filtered)
-        -- 只有被标记为 "缺油等待" (waiting_for_fuel) 的门才检查
-        if cost_enabled and struct.waiting_for_fuel then
-          TeleportHandler.handle_fuel_wakeup(struct)
-        end
+          -- 电网维持
+          if struct.is_power_primary then
+            local struct_A = struct
+            local struct_B = State.get_opposite_struct(struct_A)
 
-        -- 3. 电网维持逻辑 (原有逻辑搬运)
-        -- 只有开启消耗模式且是主控端才执行
-        if cost_enabled and struct.is_power_primary then
-          local struct_A = struct -- 别名，方便复用原代码逻辑
-          local struct_B = State.get_opposite_struct(struct_A)
+            if struct_B then
+              -- 逻辑分支一：处理已连接的电网 (续期或到期)
+              if
+                  struct_A.power_connection_status == "connected"
+                  and game.tick > struct_A.power_grid_expires_at
+              then
+                local inv_A = struct_A.entity.get_inventory(defines.inventory.assembling_machine_input)
+                local inv_B = struct_B.entity.get_inventory(defines.inventory.assembling_machine_input)
+                local count_A = inv_A and inv_A.get_item_count("chuansongmen-spacetime-shard") or 0
+                local count_B = inv_B and inv_B.get_item_count("chuansongmen-spacetime-shard") or 0
 
-          if struct_B then
-            -- 逻辑分支一：处理已连接的电网 (续期或到期)
-            if
-                struct_A.power_connection_status == "connected"
-                and game.tick > struct_A.power_grid_expires_at
-            then
-              -- log_debug("传送门 DEBUG (on_tick): [电网] 检查续期 ID " .. struct_A.id)
-
-              local inv_A = struct_A.entity.get_inventory(defines.inventory.assembling_machine_input)
-              local inv_B = struct_B.entity.get_inventory(defines.inventory.assembling_machine_input)
-              local count_A = inv_A and inv_A.get_item_count("chuansongmen-spacetime-shard") or 0
-              local count_B = inv_B and inv_B.get_item_count("chuansongmen-spacetime-shard") or 0
-
-              if (count_A + count_B) < 2 then
-                -- 【续期失败】-> 断开
-                PortalManager.disconnect_portal_power(nil, struct_A.id) -- 自动断开
-                local gps_tag_A = "[gps="
-                    .. struct_A.position.x
-                    .. ","
-                    .. struct_A.position.y
-                    .. ","
-                    .. struct_A.surface.name
-                    .. "]"
-                for _, player in pairs(game.players) do
-                  if
-                      settings.get_player_settings(player)["chuansongmen-show-power-warnings"].value
-                      == true
-                  then
-                    player.print({
-                      "messages.chuansongmen-warning-power-disconnected-shards",
-                      gps_tag_A,
-                      struct_A.name,
-                      struct_B.name,
-                    })
+                if (count_A + count_B) < 2 then
+                  -- 【续期失败】-> 断开
+                  PortalManager.disconnect_portal_power(nil, struct_A.id)
+                  local gps_tag_A = "[gps="
+                      .. struct_A.position.x
+                      .. ","
+                      .. struct_A.position.y
+                      .. ","
+                      .. struct_A.surface.name
+                      .. "]"
+                  for _, player in pairs(game.players) do
+                    if
+                        settings.get_player_settings(player)["chuansongmen-show-power-warnings"].value
+                        == true
+                    then
+                      player.print({
+                        "messages.chuansongmen-warning-power-disconnected-shards",
+                        gps_tag_A,
+                        struct_A.name,
+                        struct_B.name,
+                      })
+                    end
                   end
-                end
-              else
-                -- 【续期成功】-> 扣除物品
-                if count_A > 0 then
-                  inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
                 else
-                  inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+                  -- 【续期成功】-> 扣除物品
+                  if count_A > 0 then
+                    inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+                  else
+                    inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+                  end
+                  if count_B > 0 then
+                    inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+                  else
+                    inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+                  end
+
+                  local duration_in_ticks = settings.global["chuansongmen-power-grid-duration"].value
+                      * 60
+                      * 60
+                  local new_expires_at = struct_A.power_grid_expires_at + duration_in_ticks
+                  struct_A.power_grid_expires_at = new_expires_at
+                  struct_B.power_grid_expires_at = new_expires_at
                 end
+                -- 逻辑分支二：处理等待唤醒的电网 (自动重连)
+              elseif struct_A.power_connection_status == "disconnected_by_system" then
+                local inv_A = struct_A.entity.get_inventory(defines.inventory.assembling_machine_input)
+                local inv_B = struct_B.entity.get_inventory(defines.inventory.assembling_machine_input)
+                local count_A = inv_A and inv_A.get_item_count("chuansongmen-spacetime-shard") or 0
+                local count_B = inv_B and inv_B.get_item_count("chuansongmen-spacetime-shard") or 0
 
-                if count_B > 0 then
-                  inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
-                else
-                  inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
-                end
+                if (count_A + count_B) >= 2 then
+                  -- 【唤醒成功】
+                  if count_A > 0 then
+                    inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+                  else
+                    inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+                  end
+                  if count_B > 0 then
+                    inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+                  else
+                    inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
+                  end
 
-                local duration_in_minutes = settings.global["chuansongmen-power-grid-duration"].value
-                local duration_in_ticks = duration_in_minutes * 60 * 60
-                local new_expires_at = struct_A.power_grid_expires_at + duration_in_ticks
-                struct_A.power_grid_expires_at = new_expires_at
-                struct_B.power_grid_expires_at = new_expires_at
-              end
+                  struct_A.power_connection_status = "connected"
+                  struct_B.power_connection_status = "connected"
 
-              -- 逻辑分支二：处理等待唤醒的电网 (自动重连)
-            elseif struct_A.power_connection_status == "disconnected_by_system" then
-              -- log_debug("传送门 DEBUG (on_tick): [电网] 检查重连 ID " .. struct_A.id)
+                  local duration_in_ticks = settings.global["chuansongmen-power-grid-duration"].value
+                      * 60
+                      * 60
+                  local expires_at = game.tick + duration_in_ticks
+                  struct_A.power_grid_expires_at = expires_at
+                  struct_B.power_grid_expires_at = expires_at
 
-              local inv_A = struct_A.entity.get_inventory(defines.inventory.assembling_machine_input)
-              local inv_B = struct_B.entity.get_inventory(defines.inventory.assembling_machine_input)
-              local count_A = inv_A and inv_A.get_item_count("chuansongmen-spacetime-shard") or 0
-              local count_B = inv_B and inv_B.get_item_count("chuansongmen-spacetime-shard") or 0
-
-              if (count_A + count_B) >= 2 then
-                -- 【唤醒成功】
-                if count_A > 0 then
-                  inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
-                else
-                  inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
-                end
-
-                if count_B > 0 then
-                  inv_B.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
-                else
-                  inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
-                end
-
-                struct_A.power_connection_status = "connected"
-                struct_B.power_connection_status = "connected"
-
-                local duration_in_minutes = settings.global["chuansongmen-power-grid-duration"].value
-                local duration_in_ticks = duration_in_minutes * 60 * 60
-                local expires_at = game.tick + duration_in_ticks
-                struct_A.power_grid_expires_at = expires_at
-                struct_B.power_grid_expires_at = expires_at
-
-                PortalManager.connect_wires(struct_A, struct_B) -- 连接电线
-
-                local gps_tag_A = "[gps="
-                    .. struct_A.position.x
-                    .. ","
-                    .. struct_A.position.y
-                    .. ","
-                    .. struct_A.surface.name
-                    .. "]"
-                for _, player in pairs(game.players) do
-                  if
-                      settings.get_player_settings(player)["chuansongmen-show-power-warnings"].value
-                      == true
-                  then
-                    player.print({
-                      "messages.chuansongmen-info-power-reconnected-auto",
-                      gps_tag_A,
-                      struct_A.name,
-                      struct_B.name,
-                    })
+                  PortalManager.connect_wires(struct_A, struct_B)
+                  local gps_tag_A = "[gps="
+                      .. struct_A.position.x
+                      .. ","
+                      .. struct_A.position.y
+                      .. ","
+                      .. struct_A.surface.name
+                      .. "]"
+                  for _, player in pairs(game.players) do
+                    if
+                        settings.get_player_settings(player)["chuansongmen-show-power-warnings"].value
+                        == true
+                    then
+                      player.print({
+                        "messages.chuansongmen-info-power-reconnected-auto",
+                        gps_tag_A,
+                        struct_A.name,
+                        struct_B.name,
+                      })
+                    end
                   end
                 end
               end
             end
           end
-        end -- 结束 电网逻辑
-      end   -- 结束 低频任务
-    end     -- 结束 if entity.valid
-  end       -- 结束 主循环
+        end
+      end
+    end
+  end
 
   -- ======================================================================
-  -- 【其他全局任务】
+  -- 4. 其他全局任务 (永远执行)
   -- ======================================================================
-
-  -- Cybersyn 调度器 (保持原样)
   if CybersynScheduler.on_tick then
     CybersynScheduler.on_tick()
   end
-
-  -- 玩家传送请求处理 (保持原样)
-  process_player_teleport_requests()
+  process_player_teleport_requests() -- 玩家传送现在能正常执行了
 end
 
 -- =================================================================================

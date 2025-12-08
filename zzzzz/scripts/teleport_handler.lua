@@ -302,6 +302,12 @@ function TeleportHandler.finish_teleport(struct, opposite_struct)
 
     -- 7. 关闭激活状态
     struct.is_teleporting = false
+
+    -- [优化] 将该传送门移出活跃列表
+    if storage.active_teleporters then
+        storage.active_teleporters[struct.unit_number] = nil
+    end
+
     log_debug("传送门 DEBUG (finish_teleport): ID " .. struct.id .. " 传送结束，进入休眠。")
 end
 
@@ -383,7 +389,7 @@ function TeleportHandler.teleport_next(struct)
                     )
                     opposite.cybersyn_snapshot = c_data
                 end -- 结束 if status
-            end -- 结束 if remote
+            end     -- 结束 if remote
 
             -- <<<< [插入结束] <<<<
 
@@ -472,6 +478,28 @@ function TeleportHandler.teleport_next(struct)
             TeleportHandler.finish_teleport(struct, opposite)
         end
     else
+        -- 【关键修复】移植 SE 0.7.36 的“跑路检查”逻辑
+        -- 它的作用是：如果出口没堵，但车厢放不上去（比如火车开歪了），就检查车厢是否已经跑出了传送门范围
+        -- 如果跑出去了，就强制结束传送，防止逻辑卡死
+
+        -- 我们需要一个 offset_tick，这里用 game.tick 简单代替
+        if game.tick % (Constants.teleport_next_tick_frequency * 15) == 0 then
+            -- 1. 获取旋转后的精确包围盒
+            local carriage_bounding_box = Util.rotate_box(carriage.bounding_box, carriage.position)
+
+            -- 2. 获取正确的角点
+            -- 注意：这里的 struct.direction 是指入口方向，我们需要的是出口方向
+            -- 但由于 Railjump 只有 east/west，这里简化处理
+            local carriage_side = (struct.direction == defines.direction.east) and carriage_bounding_box.right_bottom or
+                carriage_bounding_box.left_top
+
+            -- 3. 判断是否还在传送门内
+            if not Util.position_in_rect(struct.main.bounding_box, carriage_side) then
+                TeleportHandler.finish_teleport(struct, opposite)
+                return
+            end
+        end
+
         log_debug(
             "传送门 警告 (teleport_next): 传送目标点被阻挡。等待 on_tick 速度管理器疏通..."
         )
@@ -624,6 +652,11 @@ function TeleportHandler.check_carriage_at_location(surface, position)
             struct.carriage_ahead = nil
             -- [新增] [优化] 开启传送状态标记，激活 on_tick
             struct.is_teleporting = true
+
+            -- [优化] 将该传送门的 ID 加入活跃列表
+            if not storage.active_teleporters then storage.active_teleporters = {} end
+            -- [修改] 不再存整个 struct，只存 unit_number 作为 key，值为 true
+            storage.active_teleporters[struct.unit_number] = true
             log_debug("传送门 DEBUG (check_carriage): 设置待传送车厢为: " .. struct.carriage_behind.name)
             return
         end
