@@ -647,9 +647,9 @@ local function on_tick(event)
             end
           end
         end -- 结束 电网逻辑
-      end -- 结束 低频任务
-    end -- 结束 if entity.valid
-  end   -- 结束 主循环
+      end   -- 结束 低频任务
+    end     -- 结束 if entity.valid
+  end       -- 结束 主循环
 
   -- ======================================================================
   -- 【其他全局任务】
@@ -773,6 +773,12 @@ script.on_event(defines.events.on_entity_cloned, function(event)
   end
 end)
 
+-- [新增] 事件过滤器：只监听模组相关的实体
+local csm_filters = {
+  { filter = "name", name = Constants.name_entity },
+  { filter = "name", name = "chuansongmen-placer-entity" },
+}
+
 local function handle_built_entity(event)
   -- 增加对放置器名称的判断
   if
@@ -783,10 +789,10 @@ local function handle_built_entity(event)
   end
 end
 
+-- [优化] 使用过滤器注册建造事件
 -- 修正后的注册方式：只需要传入事件ID和处理函数
-script.on_event(defines.events.on_built_entity, handle_built_entity)
-
-script.on_event(defines.events.on_robot_built_entity, handle_built_entity)
+script.on_event(defines.events.on_built_entity, handle_built_entity, csm_filters)
+script.on_event(defines.events.on_robot_built_entity, handle_built_entity, csm_filters)
 
 local function on_portal_removed(entity)
   if not (entity and entity.valid) then
@@ -803,19 +809,25 @@ local function on_portal_removed(entity)
   PortalManager.on_mined(entity)
 end
 
-script.on_event({ defines.events.on_player_mined_entity, defines.events.on_robot_mined_entity }, function(event)
-  if event and event.entity and event.entity.name == Constants.name_entity then
-    log_debug("传送门 DEBUG (event): on_mined_entity 捕捉到传送门拆除。")
-    on_portal_removed(event.entity)
-  end
-end)
+-- [优化] 拆除事件处理函数 (提取出来以便复用)
+local function on_mined_handler(event)
+  -- 因为有了过滤器，这里不需要再判断 name 了，能进来的肯定是对的
+  log_debug("传送门 DEBUG (event): on_mined_entity 捕捉到传送门拆除。")
+  on_portal_removed(event.entity)
+end
 
+-- 1. 原生拆除 (玩家): 单独注册 + 过滤器
+script.on_event(defines.events.on_player_mined_entity, on_mined_handler, csm_filters)
+
+-- 2. 原生拆除 (机器人): 单独注册 + 过滤器
+script.on_event(defines.events.on_robot_mined_entity, on_mined_handler, csm_filters)
+
+-- [优化] 使用过滤器注册死亡事件 (过滤掉虫子)
 script.on_event(defines.events.on_entity_died, function(event)
-  if event and event.entity and event.entity.name == Constants.name_entity then
-    log_debug("传送门 DEBUG (event): on_entity_died 捕捉到传送门摧毁。")
-    on_portal_removed(event.entity)
-  end
-end)
+  -- 同样不需要再判断 name
+  log_debug("传送门 DEBUG (event): on_entity_died 捕捉到传送门摧毁。")
+  on_portal_removed(event.entity)
+end, csm_filters) -- <--- 过滤器加在这里
 
 script.on_event(defines.events.on_gui_opened, function(event)
   if event.gui_type == defines.gui_type.entity and event.entity and event.entity.name == Constants.name_entity then
