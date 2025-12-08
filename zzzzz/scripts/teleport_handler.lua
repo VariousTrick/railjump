@@ -494,7 +494,7 @@ function TeleportHandler.teleport_next(struct)
                 carriage_bounding_box.left_top
 
             -- 3. 判断是否还在传送门内
-            if not Util.position_in_rect(struct.main.bounding_box, carriage_side) then
+            if not Util.position_in_rect(struct.entity.bounding_box, carriage_side) then
                 TeleportHandler.finish_teleport(struct, opposite)
                 return
             end
