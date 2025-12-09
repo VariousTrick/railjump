@@ -148,48 +148,33 @@ function Util.transfer_all_inventories(source_entity, destination_entity, move_i
         return
     end
 
-    log_util("DEBUG (transfer_all_inventories): 正在尝试 [主方案] 'get_inventories'...")
-    local success, inventories_or_error = pcall(function()
-        return source_entity.get_inventories(source_entity)
-    end)
-    if success and inventories_or_error then
-        log_util("DEBUG (transfer_all_inventories): [主方案成功] 'get_inventories' 调用成功。")
-        local source_inventories = inventories_or_error
-        local dest_inventories = destination_entity.get_inventories(destination_entity)
-        if dest_inventories then
-            for i, source_inv in pairs(source_inventories) do
-                if source_inv and dest_inventories[i] then
-                    Util.se_move_inventory_items(source_inv, dest_inventories[i])
-                end
-            end
-            log_util("DEBUG (transfer_all_inventories): 所有物品栏转移结束 (主方案)。")
-            return
-        end
-    else
-        log_util(
-            "!! 警告 (transfer_all_inventories): [主方案失败] 'get_inventories' 调用失败。错误: "
-            .. tostring(inventories_or_error)
-            .. " 将启动 [SE后备方案]..."
-        )
-    end
+    -- ========================================================================
+    -- [调整顺序] 方案B: 根据类型手动处理 (现在作为首选方案执行)
+    -- ========================================================================
+    log_util(
+        "DEBUG (transfer_all_inventories): [首选方案] 正在检查实体类型 (Type: "
+        .. source_entity.type
+        .. ")..."
+    )
 
-    log_util("DEBUG (transfer_all_inventories): [SE后备方案] 正在根据实体类型进行转移...")
+    local type_handled = true -- 标记是否成功匹配了类型
     local entity_type = source_entity.type
+
     if entity_type == "cargo-wagon" then
-        log_util("DEBUG (transfer_all_inventories): 检测到货运车厢。")
+        log_util("DEBUG (transfer_all_inventories): [首选方案] 检测到货运车厢。")
         local source_inv = source_entity.get_inventory(defines.inventory.cargo_wagon)
         local dest_inv = destination_entity.get_inventory(defines.inventory.cargo_wagon)
         Util.se_move_inventory_items(source_inv, dest_inv)
     elseif entity_type == "locomotive" then
-        log_util("DEBUG (transfer_all_inventories): 检测到机车。")
+        log_util("DEBUG (transfer_all_inventories): [首选方案] 检测到机车。")
         Util.se_transfer_burner(source_entity, destination_entity)
     elseif entity_type == "artillery-wagon" then
-        log_util("DEBUG (transfer_all_inventories): 检测到炮兵车厢。")
+        log_util("DEBUG (transfer_all_inventories): [首选方案] 检测到炮兵车厢。")
         local source_inv = source_entity.get_inventory(defines.inventory.artillery_wagon_ammo)
         local dest_inv = destination_entity.get_inventory(defines.inventory.artillery_wagon_ammo)
         Util.se_move_inventory_items(source_inv, dest_inv)
     elseif entity_type == "fluid-wagon" then
-        log_util("DEBUG (transfer_all_inventories): 检测到流体车厢，检查是否有物品栏。")
+        log_util("DEBUG (transfer_all_inventories): [首选方案] 检测到流体车厢，检查是否有物品栏。")
         if defines.inventory.fluid_wagon then
             local source_inv = source_entity.get_inventory(defines.inventory.fluid_wagon)
             if source_inv then
@@ -204,13 +189,49 @@ function Util.transfer_all_inventories(source_entity, destination_entity, move_i
             )
         end
     else
+        -- 如果没匹配到已知类型，则标记为未处理，继续向下执行方案 A
+        type_handled = false
         log_util(
             "警告 (transfer_all_inventories): [SE后备方案] 未知的实体类型 '"
             .. entity_type
-            .. "'，无法确定如何转移物品。"
+            .. "'，无法确定如何转移物品。转入 [备用方案]..."
         )
     end
-    log_util("DEBUG (transfer_all_inventories): 后备方案执行完毕。")
+
+    -- 如果方案 B 成功匹配并执行了，直接返回，不再尝试方案 A
+    if type_handled then
+        log_util("DEBUG (transfer_all_inventories): [首选方案] 转移逻辑执行完毕。")
+        return
+    end
+
+    -- ========================================================================
+    -- [调整顺序] 方案A: 尝试通用接口 get_inventories (现在作为备用方案执行)
+    -- ========================================================================
+    log_util("DEBUG (transfer_all_inventories): [备用方案] 正在尝试 'get_inventories'...")
+
+    local success, inventories_or_error = pcall(function()
+        return source_entity.get_inventories(source_entity)
+    end)
+
+    if success and inventories_or_error then
+        log_util("DEBUG (transfer_all_inventories): [备用方案成功] 'get_inventories' 调用成功。")
+        local source_inventories = inventories_or_error
+        local dest_inventories = destination_entity.get_inventories(destination_entity)
+        if dest_inventories then
+            for i, source_inv in pairs(source_inventories) do
+                if source_inv and dest_inventories[i] then
+                    Util.se_move_inventory_items(source_inv, dest_inventories[i])
+                end
+            end
+            log_util("DEBUG (transfer_all_inventories): 所有物品栏转移结束 (备用方案)。")
+            return
+        end
+    else
+        log_util(
+            "!! 警告 (transfer_all_inventories): [备用方案失败] 'get_inventories' 调用失败。错误: "
+            .. tostring(inventories_or_error)
+        )
+    end
 end
 
 function Util.transfer_inventory_filters(source_entity, destination_entity, inventory_index)
