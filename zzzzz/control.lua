@@ -446,35 +446,28 @@ local function on_tick(event)
   -- ======================================================================
   -- 2. 高频传送逻辑 (只遍历活跃列表，永远执行)
   -- ======================================================================
-  -- [优化] 传送逻辑：只遍历活跃列表
   if storage.active_teleporters then
     local ids = {}
-    -- [修改] active_teleporters 现在只存 ID，所以 key 就是 unit_number
-    for unit_number, _ in pairs(storage.active_teleporters) do
-      table.insert(ids, unit_number)
+    for id, _ in pairs(storage.active_teleporters) do
+      table.insert(ids, id)
     end
     table.sort(ids)
 
-    for _, unit_number in ipairs(ids) do
-      -- [关键修复] 用 unit_number 从 storage 实时获取最新的 struct 数据
-      local struct = MOD_DATA.portals[unit_number]
-
+    for _, id in ipairs(ids) do
+      -- [关键修复] 用 unit_number 从主数据表 MOD_DATA.portals 实时获取 struct
+      local struct = MOD_DATA.portals[id]
       if struct and struct.entity and struct.entity.valid and struct.is_teleporting then
-        -- [保持不变] 获取对侧实体
         local opposite = State.get_opposite_struct(struct)
-
         if not (opposite and opposite.entity and opposite.entity.valid) then
-          TeleportHandler.finish_teleport(struct, struct)
+          TeleportHandler.finish_teleport(struct)
           goto continue
         end
 
-        -- 持续速度管理
         TeleportHandler.hypertrain_manage_speed(struct)
 
-        -- 传送下一节车厢
         if
             event.tick % Constants.teleport_next_tick_frequency
-            == unit_number % Constants.teleport_next_tick_frequency
+            == struct.unit_number % Constants.teleport_next_tick_frequency
         then
           TeleportHandler.teleport_next(struct)
         end
@@ -484,31 +477,31 @@ local function on_tick(event)
   end
 
   -- ======================================================================
-  -- 3. 低频维护逻辑 (只在有消耗模式下执行)
+  -- 3. 低频维护逻辑 (拆分，部分永远执行)
   -- ======================================================================
-  if is_resource_cost_enabled() then
-    local tick_mod_60 = event.tick % 60
-    for _, struct in pairs(MOD_DATA.portals) do
-      if struct.entity and struct.entity.valid then
-        if tick_mod_60 == struct.id % 60 then
-          -- 碰撞器重建
-          if not (struct.collider and struct.collider.valid) then
-            local se_direction = (
-                  struct.direction == defines.direction.east
-                  or struct.direction == defines.direction.south
-                )
-                and defines.direction.east
-                or defines.direction.west
-            local collider_pos_offset = Constants.space_elevator_collider_position[se_direction]
-            if collider_pos_offset then
-              struct.collider = struct.surface.create_entity({
-                name = "chuansongmen-collider",
-                position = Util.vectors_add(struct.position, collider_pos_offset),
-                force = "neutral",
-              })
-            end
+  local tick_mod_60 = event.tick % 60
+  for _, struct in pairs(MOD_DATA.portals) do
+    if struct.entity and struct.entity.valid then
+      if tick_mod_60 == struct.id % 60 then
+        -- 【关键修复】碰撞器重建必须永远执行
+        if not (struct.collider and struct.collider.valid) then
+          local se_direction = (
+                struct.direction == defines.direction.east or struct.direction == defines.direction.south
+              )
+              and defines.direction.east
+              or defines.direction.west
+          local collider_pos_offset = Constants.space_elevator_collider_position[se_direction]
+          if collider_pos_offset then
+            struct.collider = struct.surface.create_entity({
+              name = "chuansongmen-collider",
+              position = Util.vectors_add(struct.position, collider_pos_offset),
+              force = "neutral",
+            })
           end
+        end
 
+        -- 【优化】以下逻辑只在有消耗模式下执行
+        if is_resource_cost_enabled() then
           -- 缺油唤醒
           if struct.waiting_for_fuel then
             TeleportHandler.handle_fuel_wakeup(struct)
@@ -518,7 +511,6 @@ local function on_tick(event)
           if struct.is_power_primary then
             local struct_A = struct
             local struct_B = State.get_opposite_struct(struct_A)
-
             if struct_B then
               -- 逻辑分支一：处理已连接的电网 (续期或到期)
               if
@@ -529,9 +521,7 @@ local function on_tick(event)
                 local inv_B = struct_B.entity.get_inventory(defines.inventory.assembling_machine_input)
                 local count_A = inv_A and inv_A.get_item_count("chuansongmen-spacetime-shard") or 0
                 local count_B = inv_B and inv_B.get_item_count("chuansongmen-spacetime-shard") or 0
-
                 if (count_A + count_B) < 2 then
-                  -- 【续期失败】-> 断开
                   PortalManager.disconnect_portal_power(nil, struct_A.id)
                   local gps_tag_A = "[gps="
                       .. struct_A.position.x
@@ -554,7 +544,6 @@ local function on_tick(event)
                     end
                   end
                 else
-                  -- 【续期成功】-> 扣除物品
                   if count_A > 0 then
                     inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
                   else
@@ -565,7 +554,6 @@ local function on_tick(event)
                   else
                     inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
                   end
-
                   local duration_in_ticks = settings.global["chuansongmen-power-grid-duration"].value
                       * 60
                       * 60
@@ -579,9 +567,7 @@ local function on_tick(event)
                 local inv_B = struct_B.entity.get_inventory(defines.inventory.assembling_machine_input)
                 local count_A = inv_A and inv_A.get_item_count("chuansongmen-spacetime-shard") or 0
                 local count_B = inv_B and inv_B.get_item_count("chuansongmen-spacetime-shard") or 0
-
                 if (count_A + count_B) >= 2 then
-                  -- 【唤醒成功】
                   if count_A > 0 then
                     inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
                   else
@@ -592,17 +578,14 @@ local function on_tick(event)
                   else
                     inv_A.remove({ name = "chuansongmen-spacetime-shard", count = 1 })
                   end
-
                   struct_A.power_connection_status = "connected"
                   struct_B.power_connection_status = "connected"
-
                   local duration_in_ticks = settings.global["chuansongmen-power-grid-duration"].value
                       * 60
                       * 60
                   local expires_at = game.tick + duration_in_ticks
                   struct_A.power_grid_expires_at = expires_at
                   struct_B.power_grid_expires_at = expires_at
-
                   PortalManager.connect_wires(struct_A, struct_B)
                   local gps_tag_A = "[gps="
                       .. struct_A.position.x
@@ -639,7 +622,7 @@ local function on_tick(event)
   if CybersynScheduler.on_tick then
     CybersynScheduler.on_tick()
   end
-  process_player_teleport_requests() -- 玩家传送现在能正常执行了
+  process_player_teleport_requests()
 end
 
 -- =================================================================================
