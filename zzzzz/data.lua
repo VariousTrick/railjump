@@ -59,7 +59,7 @@ data:extend({
     {
         type = "recipe",
         name = "chuansongmen",
-        enabled = true, -- 直接可用
+        enabled = true,       -- 直接可用
         energy_required = 60, -- 设定一个较长的制作时间，符合其工程量
         ingredients = {
             { type = "item", name = "processing-unit",                  amount = 200 },
@@ -96,7 +96,7 @@ data:extend({
 
         localised_description = { "entity-description.chuansongmen-entity-restriction" },
         flags = { "placeable-neutral", "placeable-player", "player-creation", "hide-alt-info" },
-        show_activity = false, -- 【请在这里加入这一行】
+        show_activity = false,    -- 【请在这里加入这一行】
         show_recipe_icon = false, -- 【!! 在这里添加这一行 !!】
         minable = { mining_time = 1, result = "chuansongmen" },
         max_health = 10000,
@@ -239,7 +239,7 @@ data:extend({
         icon_size = 64,
         flags = { "placeable-neutral", "placeable-player", "player-creation" },
         minable = { mining_time = 0.5, result = "chuansongmen" }, -- 挖掉返还原物
-        max_health = 10000,
+        max_health = 100000,
 
         -- 物理属性：完全复刻本体
         collision_box = create_centered_box(23.9, 24),
@@ -382,7 +382,7 @@ data:extend({
         type = "recipe",
         name = "chuansongmen-exotic-matter-production",
         category = "centrifuging", -- 只能在离心机中制作
-        enabled = true,      -- 直接可用
+        enabled = true,            -- 直接可用
         energy_required = 60,
         ingredients = {
             { type = "item", name = "speed-module",        amount = 1 },
@@ -401,7 +401,7 @@ data:extend({
         type = "recipe",
         name = "chuansongmen-shard-recycling",
         category = "crafting", -- 【修改】可以在组装机或玩家手中制作
-        enabled = true,  -- 直接可用
+        enabled = true,        -- 直接可用
         energy_required = 30,
         ingredients = {
             { type = "item", name = "chuansongmen-spacetime-shard", amount = 10 },
@@ -417,7 +417,7 @@ data:extend({
         type = "recipe",
         name = "chuansongmen-shard-emergency-production",
         category = "centrifuging", -- 只能在离心机中制作
-        enabled = true,      -- 直接可用
+        enabled = true,            -- 直接可用
         energy_required = 10,
         ingredients = {
             { type = "item", name = "speed-module", amount = 1 },
@@ -433,7 +433,7 @@ data:extend({
         type = "recipe",
         name = "chuansongmen-personal-stabilizer-production",
         category = "crafting", -- 可以在组装机或玩家手中制作
-        enabled = true,  -- 直接可用
+        enabled = true,        -- 直接可用
         energy_required = 15,
         ingredients = {
             { type = "item", name = "processing-unit",              amount = 10 },
@@ -686,7 +686,7 @@ else
 
     portal_entity.fixed_recipe = "chuansongmen-dummy-maintenance"
     data.raw.recipe["chuansongmen-dummy-maintenance"].enabled = true -- 确保虚拟配方可用
-    portal_entity.crafting_speed = 0.01                           -- 保持旧版无消耗模式的极低速度
+    portal_entity.crafting_speed = 0.01                              -- 保持旧版无消耗模式的极低速度
 
     -- 确保其他消耗模式的属性不存在
     portal_entity.ingredient_inventory_size = nil
