@@ -330,7 +330,7 @@ function TeleportHandler.finish_teleport(struct)
     log_debug("传送门 DEBUG (finish_teleport): ID " .. struct.id .. " 传送结束，进入休眠。")
 end
 
---- 传送下一节车厢 (修复版：发送方持有状态)
+--- 传送下一节车厢 (修复版：红绿灯逻辑支持)
 function TeleportHandler.teleport_next(struct)
     -- [修正] 自己获取对侧实体，不再依赖外部传入
     local opposite = State.get_opposite_struct(struct)
@@ -360,7 +360,7 @@ function TeleportHandler.teleport_next(struct)
         return
     end
 
-    -- [修改] 读取 struct.carriage_ahead (远端已传过去的车)
+    -- 读取 struct.carriage_ahead (远端已传过去的车)
     local carriage_ahead = struct.carriage_ahead
 
     local se_direction = (opposite.direction == defines.direction.east or opposite.direction == defines.direction.south)
@@ -375,7 +375,7 @@ function TeleportHandler.teleport_next(struct)
         force = carriage.force,
     })
 
-    -- [修改] 堵塞检查：如果是第一节车 (carriage_ahead 为空)，检查出口区域
+    -- 堵塞检查：如果是第一节车 (carriage_ahead 为空)，检查出口区域
     local is_clear = not carriage_ahead
         and opposite.surface.count_entities_filtered({
             type = Constants.stock_types,
@@ -392,7 +392,7 @@ function TeleportHandler.teleport_next(struct)
         local next_carriage = carriage.get_connected_rolling_stock(defines.rail_direction.front)
             or carriage.get_connected_rolling_stock(defines.rail_direction.back)
 
-        -- [修改] 如果是第一节车，保存状态到 struct
+        -- 如果是第一节车，保存状态到 struct
         if not carriage_ahead then
             struct.saved_manual_mode = carriage.train.manual_mode
             struct.old_train_speed = carriage.train.speed
@@ -416,7 +416,7 @@ function TeleportHandler.teleport_next(struct)
             )
         end
 
-        -- [修改] 销毁旧拖船 (从 struct 获取)
+        -- 销毁旧拖船 (从 struct 获取)
         if struct.tug and struct.tug.valid then
             struct.tug.destroy()
             struct.tug = nil
@@ -440,10 +440,16 @@ function TeleportHandler.teleport_next(struct)
         log_debug("传送门 DEBUG (teleport_next): 新车厢 " .. new_carriage.name .. " 创建成功。")
         TeleportHandler.carriage_transfer_contents(carriage, new_carriage)
 
-        -- [修改] 如果是第一节车，转移时刻表并保存索引到 struct
+        -- 如果是第一节车，转移时刻表并保存索引到 struct
         if not carriage_ahead then
             log_debug("传送门 DEBUG (teleport_next): [时刻表] 调用 ScheduleHandler 进行智能设定...")
             ScheduleHandler.transfer_schedule(carriage.train, new_carriage.train, struct.station.backer_name)
+
+            -- [新增关键逻辑] 抵消 go_to_station 的副作用
+            -- transfer_schedule 内部可能隐式开启了自动模式，我们需要立刻按回手动，等待连接完成
+            new_carriage.train.manual_mode = true
+            log_debug("传送门 DEBUG (teleport_next): [状态保护] 已强制第一节新车保持手动模式，防止早产。")
+
             if new_carriage.train and new_carriage.train.schedule then
                 struct.saved_schedule_index = new_carriage.train.schedule.current
                 log_debug(
@@ -472,14 +478,14 @@ function TeleportHandler.teleport_next(struct)
             carriage.destroy()
         end
 
-        -- [修改] 更新指针: struct.carriage_ahead 指向远端新车
+        -- 更新指针: struct.carriage_ahead 指向远端新车
         struct.carriage_ahead = new_carriage
 
         if next_carriage and next_carriage.valid then
             log_debug("传送门 DEBUG (teleport_next): 设置下一节待传送车厢: " .. next_carriage.name)
             struct.carriage_behind = next_carriage
 
-            -- [修改] 创建新拖船并赋给 struct.tug
+            -- 创建新拖船并赋给 struct.tug
             local tug = opposite.surface.create_entity({
                 name = Constants.name_tug,
                 position = Util.vectors_add(opposite.position, Constants.output_tug_pos[se_direction]),
@@ -494,6 +500,31 @@ function TeleportHandler.teleport_next(struct)
                     .. new_carriage.unit_number
                 )
             end
+
+            -- >>>>> [新增关键逻辑] 立即恢复出口火车状态 (太空电梯风格) >>>>>
+            -- 目的：让火车在两节车厢传送的间隙，也能响应红绿灯
+            if new_carriage.train and new_carriage.train.valid then
+                -- 1. 恢复时刻表
+                if struct.saved_schedule_index then
+                    new_carriage.train.go_to_station(struct.saved_schedule_index)
+                end
+
+                -- 2. 恢复自动模式 (如果原车是自动)
+                new_carriage.train.manual_mode = struct.saved_manual_mode or false
+
+                -- 3. 恢复速度 (对抗切自动导致的刹车)
+                if not new_carriage.train.manual_mode and struct.old_train_speed then
+                    local speed_direction = Chuansongmen.elevator_east_sign(opposite)
+                        * Chuansongmen.carriage_east_sign(new_carriage)
+                        * Chuansongmen.train_forward_sign(new_carriage)
+
+                    -- 只有当速度归零时才强制恢复，避免打断正常的减速
+                    if new_carriage.train.speed == 0 then
+                        new_carriage.train.speed = speed_direction * math.abs(struct.old_train_speed)
+                    end
+                end
+            end
+            -- <<<<< [新增结束] <<<<<
         else
             log_debug("传送门 DEBUG (teleport_next): 这是最后一节车厢，传送完成。")
             TeleportHandler.finish_teleport(struct)
@@ -700,11 +731,9 @@ function TeleportHandler.hypertrain_sync_speed(carriage_a, carriage_a_direction,
     train_b.speed = average_speed * carriage_b_direction * Chuansongmen.train_forward_sign(carriage_b)
 end
 
---- 【全新重构】持续速度管理器 (由 control.lua 的 on_tick 循环驱动)
--- 这个函数是解决问题的关键，它会持续为出口处的火车提供动力。
+--- 持续速度管理器 (修复版：绅士推车，红灯停)
 function TeleportHandler.hypertrain_manage_speed(struct)
-    -- 必须同时存在入口车厢和出口车厢，才意味着火车正处于“跨界”传送状态
-    -- [修改] struct.carriage_ahead 现在指向远端车厢
+    -- 必须同时存在入口车厢和出口车厢
     if
         struct.carriage_behind
         and struct.carriage_behind.valid
@@ -716,30 +745,32 @@ function TeleportHandler.hypertrain_manage_speed(struct)
         local opposite_struct = State.get_opposite_struct(struct)
 
         if not (train_behind and train_behind.valid and train_ahead and train_ahead.valid and opposite_struct) then
-            log_debug(
-                "传送门 DEBUG (hypertrain_manage_speed): 速度管理中止，火车或对侧传送门状态无效。"
-            )
             return
         end
 
-        -- 【关键逻辑】主动为出口火车提供动力，防止停止
-        local passive_train_speed = 0.5 -- 定义一个最低推动速度
-        if math.abs(train_ahead.speed) < passive_train_speed then
+        -- 1. 维持出口动力 (带红绿灯检测)
+        -- 逻辑：只有当火车处于手动模式，或者自动模式下“正在行驶/无路径”时，才施加推力。
+        -- 如果是 wait_signal (红灯) 或 destination_full，则尊重引擎决定，不推。
+        local should_push = train_ahead.manual_mode or
+            train_ahead.state == defines.train_state.on_the_path or
+            train_ahead.state == defines.train_state.no_path
+
+        local passive_train_speed = 0.5
+
+        if should_push and math.abs(train_ahead.speed) < passive_train_speed then
             local speed_direction = Chuansongmen.elevator_east_sign(opposite_struct)
                 * Chuansongmen.carriage_east_sign(struct.carriage_ahead)
                 * Chuansongmen.train_forward_sign(struct.carriage_ahead)
 
-            -- 强行设置速度！
             train_ahead.speed = passive_train_speed * speed_direction
-            -- log_debug("传送门 DEBUG: 动力维持中...")
         end
 
-        -- 确保入口火车处于手动模式，以便我们能控制其速度
+        -- 2. 强制入口手动模式 (保持不变，入口必须完全接管)
         if not train_behind.manual_mode then
             train_behind.manual_mode = true
         end
 
-        -- 调用速度同步逻辑，平衡两个部分的速度
+        -- 3. 同步速度
         TeleportHandler.hypertrain_sync_speed(
             struct.carriage_behind,
             Chuansongmen.elevator_east_sign(struct) * Chuansongmen.carriage_east_sign(struct.carriage_behind),
@@ -747,7 +778,7 @@ function TeleportHandler.hypertrain_manage_speed(struct)
             Chuansongmen.elevator_east_sign(opposite_struct) * Chuansongmen.carriage_east_sign(struct.carriage_ahead)
         )
     elseif struct.tug and struct.tug.valid then
-        -- [新增] 如果只有拖船没有车了(异常情况)，清理
+        -- 如果只有拖船没有车了(异常情况)，清理
         struct.tug.destroy()
         struct.tug = nil
     end
