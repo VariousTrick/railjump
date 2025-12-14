@@ -35,8 +35,6 @@ _A teleporter mod that allows trains and engineers to instantly travel between t
 
 You will be able to construct massive portals, pair them, and establish an instantaneous train transportation network across the entire planet, or even between different planets.
 
-**Important Disclaimer**: The development of this mod was entirely assisted by an AI. The developer himself primarily acts as the "director" and "tester" of the project. This is an experimental project exploring the possibilities of AI-assisted development. If you have any suggestions regarding the mod's design or balance, your feedback is always welcome, and we will continue to iterate and improve it with the AI.
-
 ## Core Features
 
 *   **Instant Train Teleportation**: Instantly teleports an entire train (including its cargo, fluids, equipment, and passengers) from one portal to its paired counterpart.
@@ -121,7 +119,6 @@ _一个允许火车和工程师在遥远的两个点之间瞬间移动的传送�
 
 您将能够建造巨大的传送门，将它们配对，并在整个星球甚至不同星球之间，建立起瞬时的火车运输网络。
 
-**重要声明**: 本模组的开发过程完全由AI（人工智能）辅助完成，开发者本人主要扮演“导演”和“测试者”的角色。这是一个探索AI辅助开发的实验性项目。如果您对Mod的设计或平衡性有任何建议，欢迎随时提出，我们将继续与AI一同迭代和完善。
 
 ## 核心功能
 
