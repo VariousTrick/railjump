@@ -548,18 +548,49 @@ function TeleportHandler.teleport_next(struct)
 			"传送门 警告 (teleport_next): 传送目标点被阻挡。等待 on_tick 速度管理器疏通..."
 		)
 		if not carriage_ahead and not carriage.train.manual_mode then
+			-- 1. 获取时刻表对象 (Factorio 2.0 API / RiftRail 风格)
 			local schedule = carriage.train.get_schedule()
-			if schedule then
-				local records = schedule.get_records()
-				local current_index = schedule.current
-				if records and records[current_index] then
-					records[current_index].wait_conditions = { { type = "time", ticks = 9999999 * 60 } }
-					records[current_index].temporary = true
-					schedule.set_records(records)
+			if not schedule then
+				return
+			end
+
+			-- 2. 获取当前车站的铁轨 (RiftRail 使用 station_entity.connected_rail)
+			-- 在 RailJump 中，struct.station 就是那个带有名字的车站实体
+			local station_entity = struct.station
+
+			if station_entity and station_entity.connected_rail then
+				-- 3. 获取当前记录 (完全复刻 RiftRail 的检测逻辑)
+				-- 使用 get_record 方法而不是访问 .records 属性，避免报错
+				local current_record = schedule.get_record({ schedule_index = schedule.current })
+
+				-- 4. 检查是否已经插入了路障 (防止重复插入)
+				-- 如果当前记录的铁轨就是脚下的铁轨，说明已经插过了
+				if not (current_record and current_record.rail == station_entity.connected_rail) then
 					log_debug(
-						"传送门 DEBUG (teleport_next): [兼容性模式] 出口堵塞，已修改当前站点的等待条件使火车暂停。"
+						"传送门 DEBUG (teleport_next): [RiftRail同款] 正在通过 API 插入临时路障..."
+					)
+
+					-- 5. 调用 API 插入记录 (这是 RiftRail 不报错的关键)
+					-- 直接告诉引擎：在当前位置后面加一个临时站
+					schedule.add_record({
+						rail = station_entity.connected_rail, -- 目标铁轨
+						temporary = true, -- 临时属性
+						wait_conditions = { { type = "time", ticks = 9999999 } }, -- 无限等待
+
+						-- 【核心】插入位置：当前索引 + 1
+						index = { schedule_index = schedule.current + 1 },
+					})
+
+					-- 6. 命令火车立即前往新插入的路障
+					carriage.train.go_to_station(schedule.current + 1)
+
+					log_debug(
+						"传送门 DEBUG (teleport_next): [RiftRail同款] 路障插入完成，火车已指向索引 "
+							.. (schedule.current + 1)
 					)
 				end
+			else
+				log_debug("传送门 错误 (teleport_next): 无法获取车站铁轨，无法插入防堵塞路障。")
 			end
 		end
 	end
