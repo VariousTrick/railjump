@@ -80,7 +80,7 @@ local function insert_cybersyn_stop_sequence(
     train_surface_index
 )
     if not (target_station_data and target_station_data.entity_stop and target_station_data.entity_stop.valid) then
-        log_debug("❌ 错误: 无法获取 " .. station_type_name .. " 的实体数据。")
+        if Chuansongmen.DEBUG_MODE_ENABLED then log_debug("❌ 错误: 无法获取 " .. station_type_name .. " 的实体数据。") end
         return
     end
 
@@ -91,7 +91,7 @@ local function insert_cybersyn_stop_sequence(
 
     -- 步骤 1: 尝试插入 Rail 导航记录 (仅同地表)
     if rail and target_surface_index == train_surface_index then
-        log_debug("✅ [同地表] 为 " .. station_type_name .. " (" .. backer_name .. ") 插入 Rail 导航记录。")
+        if Chuansongmen.DEBUG_MODE_ENABLED then log_debug("✅ [同地表] 为 " .. station_type_name .. " (" .. backer_name .. ") 插入 Rail 导航记录。") end
         table.insert(new_records, {
             rail = rail,
             rail_direction = stop_entity.connected_rail_direction,
@@ -99,7 +99,7 @@ local function insert_cybersyn_stop_sequence(
             wait_conditions = { { type = "time", compare_type = "and", ticks = 1 } },
         })
     elseif rail then
-        log_debug("🛡️ [异地表保护] 跳过 " .. station_type_name .. " 的 Rail 插入。")
+        if Chuansongmen.DEBUG_MODE_ENABLED then log_debug("🛡️ [异地表保护] 跳过 " .. station_type_name .. " 的 Rail 插入。") end
     end
 
     -- 步骤 2: 插入 Station 操作记录
@@ -116,7 +116,7 @@ local function insert_cybersyn_stop_sequence(
     end
 
     if not found then
-        log_debug("❌ 错误: 未找到名为 " .. backer_name .. " 的原始记录。")
+        if Chuansongmen.DEBUG_MODE_ENABLED then log_debug("❌ 错误: 未找到名为 " .. backer_name .. " 的原始记录。") end
     end
 end
 
@@ -158,7 +158,7 @@ local function process_train(train)
 
     local current_train_surface = train.front_stock.surface.index
 
-    log_debug(">>> ⚡ 开始拦截并重写时刻表 (v8 核心修复版) ⚡ <<<")
+    if Chuansongmen.DEBUG_MODE_ENABLED then log_debug(">>> ⚡ 开始拦截并重写时刻表 (v8 核心修复版) ⚡ <<<") end
 
     local new_records = {}
     local original_records = train.schedule.records
@@ -238,7 +238,7 @@ local function process_train(train)
             remote.call("cybersyn", "write_global", c_train.depot_id, "trains", train.id, "depot_id")
         end
 
-        log_debug("成功! 时刻表已修正，列车状态保持原始值，等待出发。")
+        if Chuansongmen.DEBUG_MODE_ENABLED then log_debug("成功! 时刻表已修正，列车状态保持原始值，等待出发。") end
 
         -- [新增] 消除视觉警报和内部记录
         if remote.interfaces["cybersyn"] and remote.interfaces["cybersyn"]["write_global"] then

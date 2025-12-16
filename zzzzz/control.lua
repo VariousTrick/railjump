@@ -22,10 +22,8 @@ end
 
 --- 【新功能 新增】辅助函数，用于检查资源消耗模式是否启用
 local function is_resource_cost_enabled()
-	-- 使用安全的短路求值方式读取设置
-	return settings.startup["chuansongmen-enable-resource-cost"]
-			and settings.startup["chuansongmen-enable-resource-cost"].value
-		or false
+	-- 【性能优化】直接返回缓存的常量值
+	return IS_RESOURCE_COST_ENABLED
 end
 
 -- =================================================================================
@@ -44,6 +42,17 @@ local ScheduleHandler = require("scripts.schedule-handler")
 local CybersynScheduler = require("scripts.cybersyn_scheduler")
 
 local util = require("util")
+
+-- 【性能优化】在文件加载时缓存常量设置
+local IS_RESOURCE_COST_ENABLED = settings.startup["chuansongmen-enable-resource-cost"]
+		and settings.startup["chuansongmen-enable-resource-cost"].value
+	or false
+
+-- 【修正】必须先创建 Chuansongmen 表，才能向其添加字段
+Chuansongmen = {} -- 全局表，用于存放尚未被完全模块化的函数
+
+-- 【性能优化】缓存调试模式的开关，并提供一个接口让其他模块也能访问
+Chuansongmen.DEBUG_MODE_ENABLED = settings.global["chuansongmen-debug-mode"].value
 -- 【SE 兼容】获取 Space Exploration 的列车传送事件ID
 local SE_TELEPORT_STARTED_EVENT_ID = nil
 local SE_TELEPORT_FINISHED_EVENT_ID = nil
@@ -51,21 +60,26 @@ local SE_TELEPORT_FINISHED_EVENT_ID = nil
 -- =================================================================================
 -- 核心逻辑 (剩余部分)
 -- =================================================================================
-
-Chuansongmen = {} -- 全局表，用于存放尚未被完全模块化的函数
-
 -- 在 on_load 事件中进行初始化，确保 SE 已经加载完毕
 local function initialize_se_events()
 	if script.active_mods["space-exploration"] and remote.interfaces["space-exploration"] then
-		log_debug("传送门 SE 兼容: 检测到 Space Exploration，正在获取传送事件 ID...")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 SE 兼容: 检测到 Space Exploration，正在获取传送事件 ID...")
+		end
 		local get_started_event = remote.call("space-exploration", "get_on_train_teleport_started_event")
 		local get_finished_event = remote.call("space-exploration", "get_on_train_teleport_finished_event")
 		if get_started_event and get_finished_event then
 			SE_TELEPORT_STARTED_EVENT_ID = get_started_event
 			SE_TELEPORT_FINISHED_EVENT_ID = get_finished_event
-			log_debug("传送门 SE 兼容: 成功获取事件 ID。")
+			if Chuansongmen.DEBUG_MODE_ENABLED then
+				log_debug("传送门 SE 兼容: 成功获取事件 ID。")
+			end
 		else
-			log_debug("传送门 SE 兼容: 警告 - 无法从 SE 获取传送事件 ID，状态同步可能失败。")
+			if Chuansongmen.DEBUG_MODE_ENABLED then
+				log_debug(
+					"传送门 SE 兼容: 警告 - 无法从 SE 获取传送事件 ID，状态同步可能失败。"
+				)
+			end
 		end
 	end
 end
@@ -179,7 +193,9 @@ end
 script.on_init(function()
 	initialize_all_modules()
 	State.ensure_storage()
-	log_debug("传送门 DEBUG (event): on_init 触发。")
+	if Chuansongmen.DEBUG_MODE_ENABLED then
+		log_debug("传送门 DEBUG (event): on_init 触发。")
+	end
 end)
 
 script.on_load(function()
@@ -188,31 +204,79 @@ script.on_load(function()
 	-- 然后再调用一次完整的模块初始化，这样可以确保所有依赖（包括刚获取的 SE ID）都被正确注入
 	initialize_all_modules()
 
-	log_debug("传送门 DEBUG (event): on_load 触发。")
+	if Chuansongmen.DEBUG_MODE_ENABLED then
+		log_debug("传送门 DEBUG (event): on_load 触发。")
+	end
 end)
 
 script.on_configuration_changed(function(event)
 	initialize_all_modules()
 	-- [新增] Mod更新或加入现有存档时，必须确保数据结构完整 (这是 Write 操作)
-	State.ensure_storage()
+	State.ensure_storage() -- 这会确保 buckets 表本身是存在的
+
+	-- =======================================================
+	-- 【性能优化】为旧存档填充“时间桶”
+	-- =======================================================
+	-- 判断是否需要迁移：如果 portals 表有数据，但 buckets 明显是空的，则需要迁移
+	local needs_bucket_migration = false
+	if
+		MOD_DATA.portal_buckets
+		and MOD_DATA.portals
+		and next(MOD_DATA.portals) ~= nil
+		and (not MOD_DATA.portal_buckets[0] or next(MOD_DATA.portal_buckets[0]) == nil)
+	then
+		needs_bucket_migration = true
+	end
+
+	if needs_bucket_migration then
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug(
+				"传送门 DEBUG (on_config_changed): 检测到旧存档，开始执行“时间桶”数据迁移..."
+			)
+		end
+
+		-- 遍历所有已存在的传送门，将其 unit_number 有序地插入到对应的桶中
+		for unit_number, _ in pairs(MOD_DATA.portals) do
+			local bucket_index = unit_number % 60
+			if MOD_DATA.portal_buckets[bucket_index] then
+				local bucket = MOD_DATA.portal_buckets[bucket_index]
+				table.insert(bucket, unit_number)
+			end
+		end
+
+		-- 统一对所有桶进行排序
+		for i = 0, 59 do
+			if MOD_DATA.portal_buckets[i] then
+				table.sort(MOD_DATA.portal_buckets[i])
+			end
+		end
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			if Chuansongmen.DEBUG_MODE_ENABLED then
+				log_debug("传送门 DEBUG (on_config_changed): “时间桶”数据迁移完成。")
+			end
+		end
+	end
 
 	-- =======================================================
 	-- 【数据迁移】处理Mod版本更新或旧存档兼容性问题
 	-- =======================================================
-
-	-- 无论是否检测到版本号变化，都执行一次数据完整性检查/补全
-	-- 这替代了原先 on_tick 中的延迟迁移
-	log_debug("传送门 DEBUG (on_config_changed): 开始检查数据完整性...")
+	if Chuansongmen.DEBUG_MODE_ENABLED then
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (on_config_changed): 开始检查数据完整性...")
+		end
+	end
 
 	if MOD_DATA and MOD_DATA.portals then
 		for _, portal_struct in pairs(MOD_DATA.portals) do
 			-- 迁移 power_connection_status 状态
 			if portal_struct.power_connection_status == nil then
-				log_debug(
-					"传送门 DEBUG (on_config_changed): 正在为传送门 "
-						.. portal_struct.id
-						.. " 补全电网状态..."
-				)
+				if Chuansongmen.DEBUG_MODE_ENABLED then
+					log_debug(
+						"传送门 DEBUG (on_config_changed): 正在为传送门 "
+							.. portal_struct.id
+							.. " 补全电网状态..."
+					)
+				end
 				if portal_struct.power_connected == true then
 					portal_struct.power_connection_status = "connected"
 				else
@@ -224,18 +288,25 @@ script.on_configuration_changed(function(event)
 
 			-- 迁移 power_grid_expires_at 计时器
 			if portal_struct.power_grid_expires_at == nil then
-				log_debug(
-					"传送门 DEBUG (on_config_changed): 正在为传送门 "
-						.. portal_struct.id
-						.. " 初始化电网计时器..."
-				)
+				if Chuansongmen.DEBUG_MODE_ENABLED then
+					log_debug(
+						"传送门 DEBUG (on_config_changed): 正在为传送门 "
+							.. portal_struct.id
+							.. " 初始化电网计时器..."
+					)
+				end
 				portal_struct.power_grid_expires_at = 0
 			end
 		end
 	end
-	log_debug("传送门 DEBUG (on_config_changed): 数据检查/迁移完成。")
-
-	log_debug("传送门 DEBUG (event): on_configuration_changed 触发。")
+	if Chuansongmen.DEBUG_MODE_ENABLED then
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (on_config_changed): 数据检查/迁移完成。")
+		end
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (event): on_configuration_changed 触发。")
+		end
+	end
 end)
 
 function Chuansongmen.find_portal_path_for_cybersyn(source_surface_index, destination_surface_index)
@@ -260,7 +331,9 @@ function Chuansongmen.find_portal_path_for_cybersyn(source_surface_index, destin
 			end
 		end
 	end
-	log_debug("传送门 DEBUG (find_portal_path_for_cybersyn): 未找到可用的传送门路径。")
+	if Chuansongmen.DEBUG_MODE_ENABLED then
+		log_debug("传送门 DEBUG (find_portal_path_for_cybersyn): 未找到可用的传送门路径。")
+	end
 	return nil, nil
 end
 
@@ -302,9 +375,13 @@ function Chuansongmen.force_clear_trains_in_area(struct)
 				part.destroy()
 			end
 		end
-		log_debug("传送门 DEBUG (force_clear_trains_in_area): 火车部件销毁完毕。")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (force_clear_trains_in_area): 火车部件销毁完毕。")
+		end
 	else
-		log_debug("传送门 DEBUG (force_clear_trains_in_area): 区域内无火车，无需清理。")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (force_clear_trains_in_area): 区域内无火车，无需清理。")
+		end
 	end
 end
 
@@ -314,7 +391,9 @@ local function process_player_teleport_requests()
 		return -- 如果没有请求，则直接退出
 	end
 
-	log_debug("传送门 DEBUG (on_tick): [玩家传送] 检测到待处理的传送请求...")
+	if Chuansongmen.DEBUG_MODE_ENABLED then
+		log_debug("传送门 DEBUG (on_tick): [玩家传送] 检测到待处理的传送请求...")
+	end
 
 	for player_index, request in pairs(MOD_DATA.players_to_teleport) do
 		local player = game.get_player(player_index)
@@ -396,7 +475,9 @@ local function process_player_teleport_requests()
 			if player.opened then
 				player.opened = nil
 			end
-			log_debug("传送门 DEBUG (on_tick): [玩家传送] 玩家 " .. player.name .. " 传送成功。")
+			if Chuansongmen.DEBUG_MODE_ENABLED then
+				log_debug("传送门 DEBUG (on_tick): [玩家传送] 玩家 " .. player.name .. " 传送成功。")
+			end
 		end
 	end
 
@@ -414,6 +495,9 @@ local function on_tick(event)
 	-- 2. 高频传送逻辑 (只遍历活跃列表，永远执行)
 	-- ======================================================================
 	if storage.active_teleporters then
+		-- 【性能优化】移除临时表和排序，直接遍历。这要求我们接受遍历顺序不确定性。
+		-- 为了同步，最好的办法是同样维护一个有序的 active_teleporters 列表。
+		-- 但为了简化本次修改，我们暂时维持原样，后续可再优化。
 		local ids = {}
 		for id, _ in pairs(storage.active_teleporters) do
 			table.insert(ids, id)
@@ -444,12 +528,19 @@ local function on_tick(event)
 	end
 
 	-- ======================================================================
-	-- 3. 低频维护逻辑 (拆分，部分永远执行)
+	-- 3. 低频维护逻辑 (性能重构 - 使用时间桶)
 	-- ======================================================================
 	local tick_mod_60 = event.tick % 60
-	for _, struct in pairs(MOD_DATA.portals) do
-		if struct.entity and struct.entity.valid then
-			if tick_mod_60 == struct.id % 60 then
+	local bucket = MOD_DATA.portal_buckets and MOD_DATA.portal_buckets[tick_mod_60]
+
+	if bucket then
+		-- 使用 ipairs 遍历有序数组，保证同步确定性
+		for _, unit_number in ipairs(bucket) do
+			local struct = MOD_DATA.portals[unit_number]
+			if struct and struct.entity and struct.entity.valid then
+				-- ===================================
+				-- A. 通用维护逻辑 (所有模式都执行)
+				-- ===================================
 				-- 【关键修复】碰撞器重建必须永远执行
 				if not (struct.collider and struct.collider.valid) then
 					local se_direction = (
@@ -467,8 +558,10 @@ local function on_tick(event)
 					end
 				end
 
-				-- 【优化】以下逻辑只在有消耗模式下执行
-				if is_resource_cost_enabled() then
+				-- ===================================
+				-- B. 消耗模式专属逻辑 (逻辑短路优化)
+				-- ===================================
+				if IS_RESOURCE_COST_ENABLED then
 					-- 缺油唤醒
 					if struct.waiting_for_fuel then
 						TeleportHandler.handle_fuel_wakeup(struct)
@@ -578,7 +671,7 @@ local function on_tick(event)
 							end
 						end
 					end
-				end
+				end -- end of IS_RESOURCE_COST_ENABLED block
 			end
 		end
 	end
@@ -595,7 +688,9 @@ end
 -- =================================================================================
 -- 事件监听器注册
 -- =================================================================================
-log_debug("传送门 DEBUG (control.lua): 注册事件监听器...")
+if Chuansongmen.DEBUG_MODE_ENABLED then
+	log_debug("传送门 DEBUG (control.lua): 注册事件监听器...")
+end
 script.on_event(defines.events.on_gui_click, GUI.handle_click)
 script.on_event(defines.events.on_gui_checked_state_changed, GUI.handle_checked_state_changed)
 script.on_event(defines.events.on_gui_selection_state_changed, GUI.handle_signal_selection) -- 【新增】监听玩家从信号选择界面选择图标的事件
@@ -603,7 +698,10 @@ script.on_event(defines.events.on_gui_selection_state_changed, GUI.handle_signal
 -- [新增] 监听设置变更，实时更新子模块的调试状态
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
 	if event.setting == "chuansongmen-debug-mode" then
+		-- 【性能优化】更新缓存的调试开关
 		local debug_active = settings.global["chuansongmen-debug-mode"].value
+		Chuansongmen.DEBUG_MODE_ENABLED = debug_active
+
 		if Util.set_debug_mode then
 			Util.set_debug_mode(debug_active)
 		end
@@ -656,7 +754,9 @@ script.on_event(defines.events.on_entity_cloned, function(event)
 			return
 		end
 
-		log_debug("传送门 DEBUG (cloned): 传送门克隆 " .. old_id .. " -> " .. new_entity.unit_number)
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (cloned): 传送门克隆 " .. old_id .. " -> " .. new_entity.unit_number)
+		end
 
 		-- 1. 深度拷贝数据
 		local new_data = util.table.deepcopy(old_data)
@@ -728,7 +828,9 @@ local function on_portal_removed(entity)
 	end
 	local struct = State.get_struct(entity)
 	if not struct then
-		log_debug("传送门 警告 (on_portal_removed): 找不到传送门实体的数据。")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 警告 (on_portal_removed): 找不到传送门实体的数据。")
+		end
 		PortalManager.on_mined(entity)
 		return
 	end
@@ -740,7 +842,9 @@ end
 -- [优化] 拆除事件处理函数 (提取出来以便复用)
 local function on_mined_handler(event)
 	-- 因为有了过滤器，这里不需要再判断 name 了，能进来的肯定是对的
-	log_debug("传送门 DEBUG (event): on_mined_entity 捕捉到传送门拆除。")
+	if Chuansongmen.DEBUG_MODE_ENABLED then
+		log_debug("传送门 DEBUG (event): on_mined_entity 捕捉到传送门拆除。")
+	end
 	on_portal_removed(event.entity)
 end
 
@@ -753,7 +857,9 @@ script.on_event(defines.events.on_robot_mined_entity, on_mined_handler, csm_filt
 -- [优化] 使用过滤器注册死亡事件 (过滤掉虫子)
 script.on_event(defines.events.on_entity_died, function(event)
 	-- 同样不需要再判断 name
-	log_debug("传送门 DEBUG (event): on_entity_died 捕捉到传送门摧毁。")
+	if Chuansongmen.DEBUG_MODE_ENABLED then
+		log_debug("传送门 DEBUG (event): on_entity_died 捕捉到传送门摧毁。")
+	end
 	on_portal_removed(event.entity)
 end, csm_filters) -- <--- 过滤器加在这里
 
@@ -761,7 +867,9 @@ script.on_event(defines.events.on_gui_opened, function(event)
 	if event.gui_type == defines.gui_type.entity and event.entity and event.entity.name == Constants.name_entity then
 		local player = game.get_player(event.player_index)
 		if player and not player.vehicle then
-			log_debug("传送门 DEBUG (event): on_gui_opened 捕捉到玩家打开传送门 GUI。")
+			if Chuansongmen.DEBUG_MODE_ENABLED then
+				log_debug("传送门 DEBUG (event): on_gui_opened 捕捉到玩家打开传送门 GUI。")
+			end
 			GUI.create_cybersyn_anchor_gui(player, event.entity)
 			GUI.build_or_update(player, event.entity)
 		end
@@ -775,7 +883,9 @@ script.on_event(defines.events.on_gui_closed, function(event)
 	end
 	local relative_gui = player.gui.relative
 	if relative_gui.chuansongmen_main_frame and relative_gui.chuansongmen_main_frame.valid then
-		log_debug("传送门 DEBUG (event): on_gui_closed 捕捉到实体 GUI 关闭，销毁传送门 GUI...")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (event): on_gui_closed 捕捉到实体 GUI 关闭，销毁传送门 GUI...")
+		end
 		relative_gui.chuansongmen_main_frame.destroy()
 	end
 	local anchor_frame = relative_gui.left and relative_gui.left["chuansongmen_anchor_frame"]
@@ -795,7 +905,9 @@ script.on_event(defines.events.on_trigger_created_entity, function(event)
 	end
 end)
 
-log_debug("传送门 DEBUG (control.lua): 事件监听器注册完毕。")
+if Chuansongmen.DEBUG_MODE_ENABLED then
+	log_debug("传送门 DEBUG (control.lua): 事件监听器注册完毕。")
+end
 
 -- =================================================================================
 -- 远程接口
@@ -899,6 +1011,10 @@ function serpent.line(val)
 	return res
 end
 
-log_debug("传送门 DEBUG (control.lua): Serpent 库已嵌入。")
+if Chuansongmen.DEBUG_MODE_ENABLED then
+	log_debug("传送门 DEBUG (control.lua): Serpent 库已嵌入。")
+end
 
-log_debug("传送门 DEBUG (control.lua): control.lua 加载完毕。")
+if Chuansongmen.DEBUG_MODE_ENABLED then
+	log_debug("传送门 DEBUG (control.lua): control.lua 加载完毕。")
+end

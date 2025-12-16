@@ -94,7 +94,9 @@ local function handle_cybersyn_migration(old_train_id, new_train, snapshot)
 		-- <<<<< [新增结束] <<<<<
 	end
 
-	log_debug("传送门 Cybersyn 兼容: 数据注入完成。")
+	if Chuansongmen.DEBUG_MODE_ENABLED then
+		log_debug("传送门 Cybersyn 兼容: 数据注入完成。")
+	end
 
 	-- 2. 时刻表补全 (Rail Patch)
 	local schedule = new_train.schedule
@@ -135,7 +137,9 @@ local function handle_cybersyn_migration(old_train_id, new_train, snapshot)
 
 					-- 检查是否在新地表
 					if rail and rail.surface == new_train.front_stock.surface then
-						log_debug("传送门 Cybersyn 兼容: [Rail Patch] 正在插入 Rail 导航记录...")
+						if Chuansongmen.DEBUG_MODE_ENABLED then
+							log_debug("传送门 Cybersyn 兼容: [Rail Patch] 正在插入 Rail 导航记录...")
+						end
 
 						table.insert(records, current_index, {
 							rail = rail,
@@ -147,7 +151,9 @@ local function handle_cybersyn_migration(old_train_id, new_train, snapshot)
 						schedule.records = records
 						new_train.schedule = schedule
 
-						log_debug("传送门 Cybersyn 兼容: 时刻表补全成功！")
+						if Chuansongmen.DEBUG_MODE_ENABLED then
+							log_debug("传送门 Cybersyn 兼容: 时刻表补全成功！")
+						end
 					else
 						log_debug(
 							"传送门 Cybersyn 兼容: 警告 - 目标铁轨不在当前地表，无法补全。"
@@ -177,19 +183,29 @@ function TeleportHandler.carriage_transfer_contents(carriage, new_carriage)
 			.. ")"
 	)
 	Util.transfer_equipment_grid(carriage, new_carriage)
-	log_debug("传送门 DEBUG (carriage_transfer_contents): 装备网格已转移。")
+	if Chuansongmen.DEBUG_MODE_ENABLED then
+		log_debug("传送门 DEBUG (carriage_transfer_contents): 装备网格已转移。")
+	end
 	Util.transfer_all_inventories(carriage, new_carriage, false)
-	log_debug("传送门 DEBUG (carriage_transfer_contents): 所有物品栏已转移。")
+	if Chuansongmen.DEBUG_MODE_ENABLED then
+		log_debug("传送门 DEBUG (carriage_transfer_contents): 所有物品栏已转移。")
+	end
 	if carriage.type == "fluid-wagon" then
 		Util.transfer_fluids(carriage, new_carriage)
-		log_debug("传送门 DEBUG (carriage_transfer_contents): 流体内容已转移。")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (carriage_transfer_contents): 流体内容已转移。")
+		end
 	end
 	if carriage.type == "cargo-wagon" then
 		Util.transfer_inventory_filters(carriage, new_carriage, defines.inventory.cargo_wagon)
-		log_debug("传送门 DEBUG (carriage_transfer_contents): 货运车厢过滤器已转移。")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (carriage_transfer_contents): 货运车厢过滤器已转移。")
+		end
 	elseif carriage.type == "artillery-wagon" then
 		Util.transfer_inventory_filters(carriage, new_carriage, defines.inventory.artillery_wagon_ammo)
-		log_debug("传送门 DEBUG (carriage_transfer_contents): 火炮车厢过滤器已转移。")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (carriage_transfer_contents): 火炮车厢过滤器已转移。")
+		end
 	end
 	new_carriage.backer_name = carriage.backer_name or ""
 	new_carriage.health = carriage.health
@@ -198,16 +214,22 @@ function TeleportHandler.carriage_transfer_contents(carriage, new_carriage)
 	end
 	local driver = carriage.get_driver()
 	if driver then
-		log_debug("传送门 DEBUG (carriage_transfer_contents): 检测到司机/乘客, 正在尝试传送...")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (carriage_transfer_contents): 检测到司机/乘客, 正在尝试传送...")
+		end
 		carriage.set_driver(nil)
 		if driver.object_name == "LuaPlayer" then
 			new_carriage.set_driver(driver)
-			log_debug("传送门 DEBUG (carriage_transfer_contents): 玩家司机已转移。")
+			if Chuansongmen.DEBUG_MODE_ENABLED then
+				log_debug("传送门 DEBUG (carriage_transfer_contents): 玩家司机已转移。")
+			end
 		else
 			if driver.teleport then
 				driver.teleport(new_carriage.position, new_carriage.surface)
 				new_carriage.set_driver(driver)
-				log_debug("传送门 DEBUG (carriage_transfer_contents): 非玩家司机已传送并转移。")
+				if Chuansongmen.DEBUG_MODE_ENABLED then
+					log_debug("传送门 DEBUG (carriage_transfer_contents): 非玩家司机已传送并转移。")
+				end
 			else
 				log_debug(
 					"传送门 警告 (carriage_transfer_contents): 无法传送非玩家司机 (类型: "
@@ -217,7 +239,9 @@ function TeleportHandler.carriage_transfer_contents(carriage, new_carriage)
 			end
 		end
 	end
-	log_debug("传送门 DEBUG (carriage_transfer_contents): 内容复制完成。")
+	if Chuansongmen.DEBUG_MODE_ENABLED then
+		log_debug("传送门 DEBUG (carriage_transfer_contents): 内容复制完成。")
+	end
 end
 
 --- 传送结束 (修复版：发送方持有状态)
@@ -247,7 +271,9 @@ function TeleportHandler.finish_teleport(struct)
 	if struct.tug and struct.tug.valid then
 		struct.tug.destroy()
 		struct.tug = nil
-		log_debug("传送门 DEBUG (finish_teleport): [Tug] 最后的拖船已销毁。")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (finish_teleport): [Tug] 最后的拖船已销毁。")
+		end
 	end
 
 	-- 2. 恢复火车状态
@@ -306,7 +332,9 @@ function TeleportHandler.finish_teleport(struct)
 			})
 		end
 	else
-		log_debug("传送门 警告 (finish_teleport): 找不到有效的最终火车进行状态恢复。")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 警告 (finish_teleport): 找不到有效的最终火车进行状态恢复。")
+		end
 	end
 
 	-- 5. 清理所有状态变量
@@ -327,7 +355,9 @@ function TeleportHandler.finish_teleport(struct)
 		storage.active_teleporters[struct.unit_number] = nil
 	end
 
-	log_debug("传送门 DEBUG (finish_teleport): ID " .. struct.id .. " 传送结束，进入休眠。")
+	if Chuansongmen.DEBUG_MODE_ENABLED then
+		log_debug("传送门 DEBUG (finish_teleport): ID " .. struct.id .. " 传送结束，进入休眠。")
+	end
 end
 
 --- 传送下一节车厢 (修复版：红绿灯逻辑支持)
@@ -335,7 +365,11 @@ function TeleportHandler.teleport_next(struct)
 	-- [修正] 自己获取对侧实体，不再依赖外部传入
 	local opposite = State.get_opposite_struct(struct)
 	if not opposite then
-		log_debug("传送门 DEBUG (teleport_next): 传送门 " .. struct.id .. " 未找到配对，中断传送。")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug(
+				"传送门 DEBUG (teleport_next): 传送门 " .. struct.id .. " 未找到配对，中断传送。"
+			)
+		end
 		TeleportHandler.finish_teleport(struct)
 		return
 	end
@@ -348,14 +382,18 @@ function TeleportHandler.teleport_next(struct)
 			and struct.carriage_behind.surface == struct.surface
 		)
 	then
-		log_debug("传送门 DEBUG (teleport_next): 入口待传送车厢已失效，传送序列终止。")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (teleport_next): 入口待传送车厢已失效，传送序列终止。")
+		end
 		TeleportHandler.finish_teleport(struct)
 		return
 	end
 
 	local carriage = struct.carriage_behind
 	if not (carriage.train and carriage.train.valid) then
-		log_debug("传送门 警告 (teleport_next): 待传送车厢或其火车无效，中断传送。")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 警告 (teleport_next): 待传送车厢或其火车无效，中断传送。")
+		end
 		TeleportHandler.finish_teleport(struct)
 		return
 	end
@@ -420,7 +458,9 @@ function TeleportHandler.teleport_next(struct)
 		if struct.tug and struct.tug.valid then
 			struct.tug.destroy()
 			struct.tug = nil
-			log_debug("传送门 DEBUG (teleport_next): [Tug] 旧拖船已销毁。")
+			if Chuansongmen.DEBUG_MODE_ENABLED then
+				log_debug("传送门 DEBUG (teleport_next): [Tug] 旧拖船已销毁。")
+			end
 		end
 
 		local spawn_dir = carriage.orientation > 0.5 and defines.direction.south or defines.direction.north
@@ -432,17 +472,23 @@ function TeleportHandler.teleport_next(struct)
 		})
 
 		if not new_carriage then
-			log_debug("传送门 致命错误 (teleport_next): 无法在出口创建新车厢！")
+			if Chuansongmen.DEBUG_MODE_ENABLED then
+				log_debug("传送门 致命错误 (teleport_next): 无法在出口创建新车厢！")
+			end
 			TeleportHandler.finish_teleport(struct)
 			return
 		end
 
-		log_debug("传送门 DEBUG (teleport_next): 新车厢 " .. new_carriage.name .. " 创建成功。")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (teleport_next): 新车厢 " .. new_carriage.name .. " 创建成功。")
+		end
 		TeleportHandler.carriage_transfer_contents(carriage, new_carriage)
 
 		-- 如果是第一节车，转移时刻表并保存索引到 struct
 		if not carriage_ahead then
-			log_debug("传送门 DEBUG (teleport_next): [时刻表] 调用 ScheduleHandler 进行智能设定...")
+			if Chuansongmen.DEBUG_MODE_ENABLED then
+				log_debug("传送门 DEBUG (teleport_next): [时刻表] 调用 ScheduleHandler 进行智能设定...")
+			end
 			ScheduleHandler.transfer_schedule(carriage.train, new_carriage.train, struct.station.backer_name)
 
 			-- [新增关键逻辑] 抵消 go_to_station 的副作用
@@ -484,7 +530,9 @@ function TeleportHandler.teleport_next(struct)
 		struct.carriage_ahead = new_carriage
 
 		if next_carriage and next_carriage.valid then
-			log_debug("传送门 DEBUG (teleport_next): 设置下一节待传送车厢: " .. next_carriage.name)
+			if Chuansongmen.DEBUG_MODE_ENABLED then
+				log_debug("传送门 DEBUG (teleport_next): 设置下一节待传送车厢: " .. next_carriage.name)
+			end
 			struct.carriage_behind = next_carriage
 
 			-- 创建新拖船并赋给 struct.tug
@@ -528,7 +576,9 @@ function TeleportHandler.teleport_next(struct)
 			end
 			-- <<<<< [新增结束] <<<<<
 		else
-			log_debug("传送门 DEBUG (teleport_next): 这是最后一节车厢，传送完成。")
+			if Chuansongmen.DEBUG_MODE_ENABLED then
+				log_debug("传送门 DEBUG (teleport_next): 这是最后一节车厢，传送完成。")
+			end
 			TeleportHandler.finish_teleport(struct)
 		end
 	else
@@ -590,7 +640,11 @@ function TeleportHandler.teleport_next(struct)
 					)
 				end
 			else
-				log_debug("传送门 错误 (teleport_next): 无法获取车站铁轨，无法插入防堵塞路障。")
+				if Chuansongmen.DEBUG_MODE_ENABLED then
+					log_debug(
+						"传送门 错误 (teleport_next): 无法获取车站铁轨，无法插入防堵塞路障。"
+					)
+				end
 			end
 		end
 	end
@@ -643,7 +697,11 @@ function TeleportHandler.check_carriage_at_location(surface, position)
 			)
 			local opposite = State.get_opposite_struct(struct)
 			if not opposite then
-				log_debug("传送门 DEBUG (check_carriage): [资源消耗] 传送门未配对，跳过消耗检查。")
+				if Chuansongmen.DEBUG_MODE_ENABLED then
+					log_debug(
+						"传送门 DEBUG (check_carriage): [资源消耗] 传送门未配对，跳过消耗检查。"
+					)
+				end
 			else
 				local portal_inventory = struct.entity.get_inventory(defines.inventory.assembling_machine_input)
 				if not portal_inventory then
@@ -681,7 +739,9 @@ function TeleportHandler.check_carriage_at_location(surface, position)
 							producer_portal.id,
 						})
 					end
-					log_debug("传送门 DEBUG (check_carriage): [资源消耗] 消耗完毕。")
+					if Chuansongmen.DEBUG_MODE_ENABLED then
+						log_debug("传送门 DEBUG (check_carriage): [资源消耗] 消耗完毕。")
+					end
 
 					-- [新增] [优化] 清除缺油标记 (如果之前有)
 					struct.waiting_for_fuel = nil
@@ -734,7 +794,9 @@ function TeleportHandler.check_carriage_at_location(surface, position)
 				.. #carriages
 				.. " 节车厢。"
 		)
-		log_debug("传送门 DEBUG (check_carriage): 成功捕获到火车: " .. carriages[1].name)
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (check_carriage): 成功捕获到火车: " .. carriages[1].name)
+		end
 		struct.carriage_behind = carriages[1]
 
 		-- [注意] 这里初始化状态，确保是从头开始
@@ -750,7 +812,9 @@ function TeleportHandler.check_carriage_at_location(surface, position)
 		end
 		-- [修改] 不再存整个 struct，只存 unit_number 作为 key，值为 true
 		storage.active_teleporters[struct.unit_number] = true
-		log_debug("传送门 DEBUG (check_carriage): 设置待传送车厢为: " .. struct.carriage_behind.name)
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG (check_carriage): 设置待传送车厢为: " .. struct.carriage_behind.name)
+		end
 		return
 	end
 end
@@ -847,7 +911,9 @@ function TeleportHandler.handle_fuel_wakeup(struct)
 	local local_inv = struct.entity.get_inventory(defines.inventory.assembling_machine_input)
 	if local_inv and local_inv.get_item_count("chuansongmen-exotic-matter") > 0 then
 		network_has_fuel = true
-		log_debug("传送门 DEBUG: [唤醒] 在本地传送门 ID " .. struct.id .. " 发现燃料。")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG: [唤醒] 在本地传送门 ID " .. struct.id .. " 发现燃料。")
+		end
 	end
 
 	-- 2. 如果本地没有，再检查对侧燃料
@@ -857,14 +923,18 @@ function TeleportHandler.handle_fuel_wakeup(struct)
 			local opposite_inv = opposite.entity.get_inventory(defines.inventory.assembling_machine_input)
 			if opposite_inv and opposite_inv.get_item_count("chuansongmen-exotic-matter") > 0 then
 				network_has_fuel = true
-				log_debug("传送门 DEBUG: [唤醒] 在对侧传送门 ID " .. opposite.id .. " 发现燃料。")
+				if Chuansongmen.DEBUG_MODE_ENABLED then
+					log_debug("传送门 DEBUG: [唤醒] 在对侧传送门 ID " .. opposite.id .. " 发现燃料。")
+				end
 			end
 		end
 	end
 
 	-- 3. 如果网络中有燃料，则唤醒火车
 	if network_has_fuel then
-		log_debug("传送门 DEBUG: [唤醒] 燃料已补充，正在唤醒火车...")
+		if Chuansongmen.DEBUG_MODE_ENABLED then
+			log_debug("传送门 DEBUG: [唤醒] 燃料已补充，正在唤醒火车...")
+		end
 
 		local train = struct.blocked_train
 		local schedule = train.schedule
